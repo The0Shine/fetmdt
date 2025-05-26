@@ -27,7 +27,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
         category: categories[0] || '',
         unit: 'Chiếc',
         price: 0,
-        stock: 0,
+        quantity: 0,
         status: 'in-stock',
         image: '',
         description: '',
@@ -45,7 +45,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 category: categories[0] || '',
                 unit: 'Chiếc',
                 price: 0,
-                stock: 0,
+                quantity: 0,
                 status: 'in-stock',
                 image: '',
                 description: '',
@@ -64,7 +64,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
         setFormData((prev) => ({
             ...prev,
             [name]:
-                name === 'price' || name === 'stock' || name === 'costPrice'
+                name === 'price' || name === 'costPrice'
                     ? Number(value)
                     : value,
         }))

@@ -101,6 +101,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setError(null)
         setLoading(true)
+        console.log(product)
 
         try {
             const response = await mainRepository.post<{
@@ -112,7 +113,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
                     }>
                 }
             }>('api/cart', {
-                productId: product.id,
+                productId: product._id,
                 quantity,
             })
 

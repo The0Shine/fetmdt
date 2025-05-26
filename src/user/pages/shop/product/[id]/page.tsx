@@ -5,5 +5,5 @@ export default function ProductDetailPage({
 }: {
     params: { id: string }
 }) {
-    return <ProductDetail productId={Number.parseInt(params.id)} />
+    return <ProductDetail productId={params.id} />
 }

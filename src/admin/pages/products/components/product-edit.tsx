@@ -34,7 +34,6 @@ export default function ProductEdit() {
                     // Đảm bảo stock luôn là 0
                     setProduct({
                         ...productResponse.data,
-                        stock: 0,
                         // Đảm bảo các trường boolean được xử lý đúng
                         featured: productResponse.data.featured || false,
                         recommended: productResponse.data.recommended || false,
@@ -72,7 +71,6 @@ export default function ProductEdit() {
         const { name, value, type } = e.target as HTMLInputElement
 
         // Không cho phép thay đổi stock
-        if (name === 'stock') return
 
         setProduct((prev) => {
             if (!prev) return prev
@@ -112,7 +110,7 @@ export default function ProductEdit() {
         setError(null)
         try {
             // Đảm bảo stock luôn là 0 khi lưu
-            await updateProduct(id, { ...product, stock: 0 })
+            await updateProduct(id, { ...product, quantity: 0 })
             navigate('/admin/products')
         } catch (err) {
             setError('Không thể cập nhật sản phẩm. Vui lòng thử lại sau.')

@@ -10,13 +10,13 @@ import {
 } from '../components/icons'
 import { HomePage } from '../pages'
 import RoleManagement from '../pages/Role/role-management'
-import Transaction from '../pages/Transaction/finance-management'
 import InventoryManagement from '../pages/inventory/inventory-management'
 import OrderManagement from '../pages/orders/order-management'
 import ProductManagement from '../pages/products/product-management'
 import { User } from 'lucide-react'
 import UserManagement from '../pages/UserManegerment/user-management'
 import CategoryManagement from '../pages/products/category-management'
+import TransactionManagement from '../pages/Transaction/transaction-management'
 export const ROUTES = {
     HomePage: '',
     SignUp: '/signup',
@@ -60,7 +60,7 @@ const routerList = [
     {
         title: 'Transaction',
         href: ROUTES.Transaction,
-        component: Transaction,
+        component: TransactionManagement,
         icon: IconWallet,
     },
     {

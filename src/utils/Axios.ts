@@ -5,7 +5,7 @@ import axios, {
 } from 'axios'
 // import axiosRetry from "axios-retry";
 import nProgress from 'nprogress'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 export class Repository {
     private axiosInstance: AxiosInstance

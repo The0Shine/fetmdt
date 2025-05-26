@@ -1,347 +1,184 @@
 'use client'
 
 import type React from 'react'
+import { useState, useEffect } from 'react'
+import {
+    Search,
+    Plus,
+    Edit,
+    Trash2,
+    Shield,
+    Loader2,
+    AlertCircle,
+    Users,
+    Crown,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CustomPagination } from '@/components/ui/custom-pagination'
+import {
+    apiRoleService,
+    type RoleResponse,
+    type CreateRoleRequest,
+    type UpdateRoleRequest,
+} from '../../../services/apiRole.service'
+import { toast } from 'sonner'
 
-import { useState, useMemo } from 'react'
-import DataTable from 'react-data-table-component'
-import { Search, Plus, Edit, Trash2, Shield, UserPlus, X } from 'lucide-react'
-
-// Định nghĩa kiểu dữ liệu cho vai trò
-interface Role {
-    id: number
-    name: string
-    description: string
-    permissions: Permission[]
-    usersCount: number
-    createdAt: string
+interface ExtendedRoleResponse extends RoleResponse {
+    canDelete: boolean
+    canEdit: boolean
 }
-
-interface Permission {
-    id: number
-    name: string
-    module: string
-    actions: string[]
-}
-
-// Dữ liệu mẫu
-const initialRoles: Role[] = [
-    {
-        id: 1,
-        name: 'Quản trị viên',
-        description: 'Có tất cả các quyền trong hệ thống',
-        permissions: [
-            {
-                id: 1,
-                name: 'Quản lý sản phẩm',
-                module: 'products',
-                actions: ['view', 'create', 'edit', 'delete'],
-            },
-            {
-                id: 2,
-                name: 'Quản lý đơn hàng',
-                module: 'orders',
-                actions: ['view', 'create', 'edit', 'delete'],
-            },
-            {
-                id: 3,
-                name: 'Quản lý khách hàng',
-                module: 'customers',
-                actions: ['view', 'create', 'edit', 'delete'],
-            },
-            {
-                id: 4,
-                name: 'Quản lý kho',
-                module: 'inventory',
-                actions: ['view', 'create', 'edit', 'delete'],
-            },
-            {
-                id: 5,
-                name: 'Quản lý thu chi',
-                module: 'finance',
-                actions: ['view', 'create', 'edit', 'delete'],
-            },
-            {
-                id: 6,
-                name: 'Quản lý người dùng',
-                module: 'users',
-                actions: ['view', 'create', 'edit', 'delete'],
-            },
-            {
-                id: 7,
-                name: 'Quản lý quyền',
-                module: 'roles',
-                actions: ['view', 'create', 'edit', 'delete'],
-            },
-        ],
-        usersCount: 2,
-        createdAt: '15/04/2023',
-    },
-    {
-        id: 2,
-        name: 'Nhân viên bán hàng',
-        description: 'Quản lý đơn hàng và khách hàng',
-        permissions: [
-            {
-                id: 1,
-                name: 'Quản lý sản phẩm',
-                module: 'products',
-                actions: ['view'],
-            },
-            {
-                id: 2,
-                name: 'Quản lý đơn hàng',
-                module: 'orders',
-                actions: ['view', 'create', 'edit'],
-            },
-            {
-                id: 3,
-                name: 'Quản lý khách hàng',
-                module: 'customers',
-                actions: ['view', 'create', 'edit'],
-            },
-        ],
-        usersCount: 5,
-        createdAt: '16/04/2023',
-    },
-    {
-        id: 3,
-        name: 'Nhân viên kho',
-        description: 'Quản lý kho và sản phẩm',
-        permissions: [
-            {
-                id: 1,
-                name: 'Quản lý sản phẩm',
-                module: 'products',
-                actions: ['view', 'edit'],
-            },
-            {
-                id: 4,
-                name: 'Quản lý kho',
-                module: 'inventory',
-                actions: ['view', 'create', 'edit'],
-            },
-        ],
-        usersCount: 3,
-        createdAt: '17/04/2023',
-    },
-    {
-        id: 4,
-        name: 'Kế toán',
-        description: 'Quản lý tài chính và đơn hàng',
-        permissions: [
-            {
-                id: 2,
-                name: 'Quản lý đơn hàng',
-                module: 'orders',
-                actions: ['view'],
-            },
-            {
-                id: 5,
-                name: 'Quản lý thu chi',
-                module: 'finance',
-                actions: ['view', 'create', 'edit'],
-            },
-        ],
-        usersCount: 2,
-        createdAt: '18/04/2023',
-    },
-]
-
-// Danh sách tất cả các module trong hệ thống
-const allModules = [
-    {
-        id: 1,
-        name: 'Quản lý sản phẩm',
-        module: 'products',
-        actions: ['view', 'create', 'edit', 'delete'],
-    },
-    {
-        id: 2,
-        name: 'Quản lý đơn hàng',
-        module: 'orders',
-        actions: ['view', 'create', 'edit', 'delete'],
-    },
-    {
-        id: 3,
-        name: 'Quản lý khách hàng',
-        module: 'customers',
-        actions: ['view', 'create', 'edit', 'delete'],
-    },
-    {
-        id: 4,
-        name: 'Quản lý kho',
-        module: 'inventory',
-        actions: ['view', 'create', 'edit', 'delete'],
-    },
-    {
-        id: 5,
-        name: 'Quản lý thu chi',
-        module: 'finance',
-        actions: ['view', 'create', 'edit', 'delete'],
-    },
-    {
-        id: 6,
-        name: 'Quản lý người dùng',
-        module: 'users',
-        actions: ['view', 'create', 'edit', 'delete'],
-    },
-    {
-        id: 7,
-        name: 'Quản lý quyền',
-        module: 'roles',
-        actions: ['view', 'create', 'edit', 'delete'],
-    },
-]
 
 export default function RoleManagement() {
-    const [roles, setRoles] = useState<Role[]>(initialRoles)
+    const [roles, setRoles] = useState<ExtendedRoleResponse[]>([])
+    const [permissions, setPermissions] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [editingRole, setEditingRole] = useState<Role | null>(null)
-    const [resetPaginationToggle, setResetPaginationToggle] = useState(false)
-    const [selectedRows, setSelectedRows] = useState<Role[]>([])
+    const [editingRole, setEditingRole] = useState<ExtendedRoleResponse | null>(
+        null,
+    )
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalRows, setTotalRows] = useState(0)
+    const [perPage, setPerPage] = useState(10)
+    const [deleteDialog, setDeleteDialog] = useState<{
+        open: boolean
+        role: ExtendedRoleResponse | null
+    }>({
+        open: false,
+        role: null,
+    })
 
-    // Xử lý tìm kiếm
-    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value
-        setSearchTerm(value)
-        setResetPaginationToggle(!resetPaginationToggle)
+    // Fetch roles from API
+    const fetchRoles = async (page = 1, limit = 10, search = '') => {
+        try {
+            setLoading(true)
+            const params: any = { page, limit }
+
+            if (search) params.search = search
+
+            const response = await apiRoleService.getRoles(params)
+            setRoles(response.data as ExtendedRoleResponse[])
+            setTotalRows(response.meta.total)
+        } catch (error) {
+            console.error('Error fetching roles:', error)
+            toast.error('Không thể tải danh sách vai trò')
+        } finally {
+            setLoading(false)
+        }
     }
 
-    // Mở modal thêm vai trò mới
+    // Fetch permissions
+    const fetchPermissions = async () => {
+        try {
+            const response = await apiRoleService.getPermissions()
+            setPermissions(response.data)
+        } catch (error) {
+            console.error('Error fetching permissions:', error)
+            toast.error('Không thể tải danh sách quyền')
+        }
+    }
+
+    useEffect(() => {
+        fetchRoles(currentPage, perPage, searchTerm)
+        fetchPermissions()
+    }, [currentPage, perPage])
+
+    // Handle search with debounce
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setCurrentPage(1)
+            fetchRoles(1, perPage, searchTerm)
+        }, 500)
+
+        return () => clearTimeout(timeoutId)
+    }, [searchTerm])
+
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(e.target.value)
+    }
+
     const handleAddRole = () => {
         setEditingRole(null)
         setIsModalOpen(true)
     }
 
-    // Mở modal chỉnh sửa vai trò
-    const handleEditRole = (role: Role) => {
+    const handleEditRole = (role: ExtendedRoleResponse) => {
+        if (!role.canEdit) {
+            toast.error('Không thể chỉnh sửa vai trò này')
+            return
+        }
         setEditingRole(role)
         setIsModalOpen(true)
     }
 
-    // Xử lý xóa vai trò
-    const handleDeleteRole = (id: number) => {
-        if (window.confirm('Bạn có chắc chắn muốn xóa vai trò này không?')) {
-            setRoles(roles.filter((role) => role.id !== id))
+    const handleDeleteRole = (role: ExtendedRoleResponse) => {
+        if (!role.canDelete) {
+            toast.error('Không thể xóa vai trò này')
+            return
+        }
+        setDeleteDialog({ open: true, role })
+    }
+
+    const confirmDeleteRole = async () => {
+        if (!deleteDialog.role) return
+
+        try {
+            await apiRoleService.deleteRole(deleteDialog.role._id)
+            toast.success('Đã xóa vai trò thành công')
+            fetchRoles(currentPage, perPage, searchTerm)
+        } catch (error: any) {
+            console.error('Error deleting role:', error)
+            toast.error(
+                error.response?.data?.message || 'Không thể xóa vai trò',
+            )
+        } finally {
+            setDeleteDialog({ open: false, role: null })
         }
     }
 
-    // Lọc dữ liệu dựa trên tìm kiếm
-    const filteredData = useMemo(() => {
-        if (!searchTerm) return roles
-
-        const searchLower = searchTerm.toLowerCase()
-        return roles.filter(
-            (role) =>
-                role.name.toLowerCase().includes(searchLower) ||
-                role.description.toLowerCase().includes(searchLower),
-        )
-    }, [roles, searchTerm])
-
-    // Cấu hình cột cho DataTable
-    const columns = [
-        {
-            name: 'Tên vai trò',
-            selector: (row: Role) => row.name,
-            sortable: true,
-        },
-        {
-            name: 'Mô tả',
-            selector: (row: Role) => row.description,
-            sortable: true,
-        },
-        {
-            name: 'Số người dùng',
-            selector: (row: Role) => row.usersCount,
-            sortable: true,
-            cell: (row: Role) => (
-                <div className="flex items-center">
-                    <UserPlus size={16} className="mr-2 text-gray-400" />
-                    <span>{row.usersCount}</span>
-                </div>
-            ),
-        },
-        {
-            name: 'Ngày tạo',
-            selector: (row: Role) => row.createdAt,
-            sortable: true,
-        },
-        {
-            name: '',
-            cell: (row: Role) => (
-                <div className="flex space-x-2">
-                    <button
-                        className="text-blue-500 hover:text-blue-700"
-                        onClick={() => handleEditRole(row)}
-                        title="Chỉnh sửa"
-                    >
-                        <Edit size={16} />
-                    </button>
-                    <button
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => handleDeleteRole(row.id)}
-                        title="Xóa"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                </div>
-            ),
-            button: true,
-            width: '100px',
-        },
-    ]
-
-    // Tùy chỉnh style cho DataTable
-    const customStyles = {
-        headRow: {
-            style: {
-                backgroundColor: '#f9fafb',
-                borderBottom: '1px solid #e5e7eb',
-                fontSize: '0.75rem',
-                color: '#6b7280',
-                textTransform: 'uppercase' as const,
-                fontWeight: '600',
-                letterSpacing: '0.05em',
-            },
-        },
-        rows: {
-            style: {
-                minHeight: '56px',
-                fontSize: '0.875rem',
-                color: '#111827',
-                '&:hover': {
-                    backgroundColor: '#f9fafb',
-                },
-            },
-            stripedStyle: {
-                backgroundColor: '#f9fafb',
-            },
-        },
-        pagination: {
-            style: {
-                borderTop: '1px solid #e5e7eb',
-                fontSize: '0.875rem',
-            },
-            pageButtonsStyle: {
-                color: '#6b7280',
-                fill: '#6b7280',
-                '&:hover:not(:disabled)': {
-                    backgroundColor: '#f3f4f6',
-                },
-                '&:focus': {
-                    outline: 'none',
-                },
-            },
-        },
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
     }
 
-    // Tùy chỉnh component phân trang
-    const paginationComponentOptions = {
-        rowsPerPageText: 'Số hàng:',
-        rangeSeparatorText: 'trên',
-        selectAllRowsItem: true,
-        selectAllRowsItemText: 'Tất cả',
+    const totalPages = Math.ceil(totalRows / perPage)
+
+    if (loading && roles.length === 0) {
+        return (
+            <div className="flex h-64 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+                <span className="ml-2">Đang tải...</span>
+            </div>
+        )
     }
 
     return (
@@ -357,82 +194,250 @@ export default function RoleManagement() {
                 </div>
             </div>
 
-            <div className="rounded-lg bg-white p-6 shadow-sm">
-                <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-lg font-medium">Danh sách vai trò</h2>
-                    <button
-                        className="flex items-center rounded-md bg-teal-500 px-4 py-2 text-white hover:bg-teal-600"
-                        onClick={handleAddRole}
-                    >
-                        <Plus size={16} className="mr-1" /> Thêm vai trò
-                    </button>
-                </div>
-
-                <div className="mb-6 flex justify-between">
-                    <div className="relative w-80">
-                        <div className="absolute top-1/2 left-3 -translate-y-1/2 transform text-gray-400">
-                            <Search size={16} />
-                        </div>
-                        <input
-                            placeholder="Tìm kiếm vai trò"
-                            className="w-full rounded-md border border-gray-300 py-2 pr-4 pl-10 focus:border-transparent focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                            value={searchTerm}
-                            onChange={handleSearch}
-                        />
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle>Danh sách vai trò ({totalRows})</CardTitle>
+                        <Button
+                            onClick={handleAddRole}
+                            className="bg-teal-500 hover:bg-teal-600"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Thêm vai trò
+                        </Button>
                     </div>
-                </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="relative w-full md:w-80">
+                            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <Input
+                                placeholder="Tìm kiếm vai trò..."
+                                value={searchTerm}
+                                onChange={handleSearch}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
 
-                <div className="overflow-hidden rounded-lg">
-                    <DataTable
-                        columns={columns}
-                        data={filteredData}
-                        pagination
-                        paginationResetDefaultPage={resetPaginationToggle}
-                        paginationComponentOptions={paginationComponentOptions}
-                        selectableRows
-                        onSelectedRowsChange={(state) =>
-                            setSelectedRows(state.selectedRows)
-                        }
-                        customStyles={customStyles}
-                        noDataComponent={
-                            <div className="p-4 text-center text-gray-500">
-                                Không có vai trò nào
-                            </div>
-                        }
-                        persistTableHead
-                    />
-                </div>
-            </div>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Tên vai trò</TableHead>
+                                    <TableHead>Mô tả</TableHead>
+                                    <TableHead>Số người dùng</TableHead>
+                                    <TableHead>Ngày tạo</TableHead>
+                                    <TableHead className="text-right">
+                                        Thao tác
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="py-8 text-center"
+                                        >
+                                            <Loader2 className="mx-auto h-6 w-6 animate-spin text-teal-500" />
+                                            <span className="ml-2">
+                                                Đang tải...
+                                            </span>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : roles.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="py-8 text-center text-gray-500"
+                                        >
+                                            <AlertCircle className="mx-auto mb-2 h-8 w-8" />
+                                            <p>Không có vai trò nào</p>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    roles.map((role) => (
+                                        <TableRow key={role._id}>
+                                            <TableCell>
+                                                <div className="flex items-center py-2">
+                                                    {role.name ===
+                                                    'Super Admin' ? (
+                                                        <Crown
+                                                            className="mr-2 text-yellow-500"
+                                                            size={16}
+                                                        />
+                                                    ) : (
+                                                        <Shield
+                                                            className="mr-2 text-teal-500"
+                                                            size={16}
+                                                        />
+                                                    )}
+                                                    <div>
+                                                        <div className="flex items-center gap-2 font-medium">
+                                                            {role.name}
+                                                            {role.name ===
+                                                                'Super Admin' && (
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className="bg-yellow-100 text-yellow-600"
+                                                                >
+                                                                    Không thể
+                                                                    xóa
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {
+                                                                role.permissions
+                                                                    .length
+                                                            }{' '}
+                                                            quyền
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {role.description || '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Users className="mr-2 h-4 w-4 text-gray-400" />
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="border-blue-200 bg-blue-50 text-blue-600"
+                                                    >
+                                                        {role.userCount}
+                                                    </Badge>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {new Date(
+                                                    role.createdAt,
+                                                ).toLocaleDateString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            handleEditRole(role)
+                                                        }
+                                                        disabled={!role.canEdit}
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            handleDeleteRole(
+                                                                role,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            !role.canDelete
+                                                        }
+                                                        className="text-red-600 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
 
-            {isModalOpen && (
+                    {totalPages > 1 && (
+                        <div className="mt-4">
+                            <CustomPagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={handlePageChange}
+                            />
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Role Modal */}
+            {isModalOpen && permissions && (
                 <RoleModal
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     role={editingRole}
-                    onSave={(role) => {
-                        if (role.id) {
-                            setRoles(
-                                roles.map((r) => (r.id === role.id ? role : r)),
+                    onSave={async (roleData) => {
+                        try {
+                            if (editingRole) {
+                                await apiRoleService.updateRole(
+                                    editingRole._id,
+                                    roleData,
+                                )
+                                toast.success('Đã cập nhật vai trò thành công')
+                            } else {
+                                await apiRoleService.createRole(
+                                    roleData as CreateRoleRequest,
+                                )
+                                toast.success('Đã thêm vai trò thành công')
+                            }
+                            setIsModalOpen(false)
+                            fetchRoles(currentPage, perPage, searchTerm)
+                        } catch (error: any) {
+                            console.error('Error saving role:', error)
+                            toast.error(
+                                error.response?.data?.message ||
+                                    'Không thể lưu vai trò',
                             )
-                        } else {
-                            const newId =
-                                Math.max(...roles.map((r) => r.id), 0) + 1
-                            setRoles([
-                                ...roles,
-                                {
-                                    ...role,
-                                    id: newId,
-                                    createdAt: new Date().toLocaleDateString(
-                                        'vi-VN',
-                                    ),
-                                },
-                            ])
                         }
-                        setIsModalOpen(false)
                     }}
-                    allModules={allModules}
+                    permissions={permissions}
                 />
             )}
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog
+                open={deleteDialog.open}
+                onOpenChange={(open) => setDeleteDialog({ open, role: null })}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Xác nhận xóa vai trò
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bạn có chắc chắn muốn xóa vai trò{' '}
+                            <span className="font-medium">
+                                {deleteDialog.role?.name}
+                            </span>
+                            ?
+                            {deleteDialog.role?.userCount &&
+                                deleteDialog.role.userCount > 0 && (
+                                    <span className="text-red-600">
+                                        {' '}
+                                        Hiện có {
+                                            deleteDialog.role.userCount
+                                        }{' '}
+                                        người dùng đang sử dụng vai trò này.
+                                    </span>
+                                )}{' '}
+                            Hành động này không thể hoàn tác.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDeleteRole}
+                            className="bg-red-500 hover:bg-red-600"
+                        >
+                            Xóa
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
@@ -440,9 +445,9 @@ export default function RoleManagement() {
 interface RoleModalProps {
     isOpen: boolean
     onClose: () => void
-    role: Role | null
-    onSave: (role: Role) => void
-    allModules: Permission[]
+    role: ExtendedRoleResponse | null
+    onSave: (role: CreateRoleRequest | UpdateRoleRequest) => Promise<void>
+    permissions: any
 }
 
 function RoleModal({
@@ -450,300 +455,319 @@ function RoleModal({
     onClose,
     role,
     onSave,
-    allModules,
+    permissions,
 }: RoleModalProps) {
-    const [formData, setFormData] = useState<Partial<Role>>(
-        role || {
-            name: '',
-            description: '',
-            permissions: [],
-            usersCount: 0,
-        },
-    )
-
-    const [selectedPermissions, setSelectedPermissions] = useState<
-        Record<string, string[]>
+    const [formData, setFormData] = useState<
+        Partial<CreateRoleRequest & UpdateRoleRequest>
     >(
-        role?.permissions.reduce(
-            (acc, permission) => {
-                acc[permission.module] = permission.actions
-                return acc
-            },
-            {} as Record<string, string[]>,
-        ) || {},
+        role
+            ? {
+                  name: role.name,
+                  description: role.description || '',
+                  permissions: role.permissions,
+              }
+            : {
+                  name: '',
+                  description: '',
+                  permissions: [],
+              },
     )
+    const [loading, setLoading] = useState(false)
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     ) => {
         const { name, value } = e.target
-        setFormData({ ...formData, [name]: value })
-    }
-
-    const handlePermissionChange = (
-        module: string,
-        action: string,
-        checked: boolean,
-    ) => {
-        setSelectedPermissions((prev) => {
-            const current = prev[module] || []
-            if (checked) {
-                return { ...prev, [module]: [...current, action] }
-            } else {
-                return {
-                    ...prev,
-                    [module]: current.filter((a) => a !== action),
-                }
-            }
+        setFormData({
+            ...formData,
+            [name]: value,
         })
     }
 
-    const handleSelectAllForModule = (module: string, checked: boolean) => {
-        const moduleInfo = allModules.find((m) => m.module === module)
-        if (moduleInfo) {
-            setSelectedPermissions((prev) => ({
-                ...prev,
-                [module]: checked ? [...moduleInfo.actions] : [],
-            }))
+    const handlePermissionChange = (permission: string, checked: boolean) => {
+        const currentPermissions = formData.permissions || []
+        if (checked) {
+            setFormData({
+                ...formData,
+                permissions: [...currentPermissions, permission],
+            })
+        } else {
+            setFormData({
+                ...formData,
+                permissions: currentPermissions.filter((p) => p !== permission),
+            })
         }
     }
 
-    const handleSave = () => {
-        const permissions = allModules
-            .filter((module) => selectedPermissions[module.module]?.length > 0)
-            .map((module) => ({
-                id: module.id,
-                name: module.name,
-                module: module.module,
-                actions: selectedPermissions[module.module] || [],
-            }))
+    const handleSelectAllForModule = (
+        modulePermissions: string[],
+        checked: boolean,
+    ) => {
+        const currentPermissions = formData.permissions || []
+        if (checked) {
+            const newPermissions = [
+                ...new Set([...currentPermissions, ...modulePermissions]),
+            ]
+            setFormData({
+                ...formData,
+                permissions: newPermissions,
+            })
+        } else {
+            setFormData({
+                ...formData,
+                permissions: currentPermissions.filter(
+                    (p) => !modulePermissions.includes(p),
+                ),
+            })
+        }
+    }
 
-        onSave({
-            ...(formData as Role),
-            permissions,
-        })
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+        try {
+            await onSave(formData as CreateRoleRequest | UpdateRoleRequest)
+        } finally {
+            setLoading(false)
+        }
     }
 
     if (!isOpen) return null
 
-    return (
-        <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b p-6">
-                    <h2 className="flex items-center text-xl font-semibold">
-                        <Shield className="mr-2 text-teal-500" size={20} />
-                        {role ? 'Chỉnh sửa vai trò' : 'Thêm vai trò mới'}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
+    const currentPermissions = formData.permissions || []
 
-                <div
-                    className="overflow-y-auto p-6"
-                    style={{ maxHeight: 'calc(90vh - 130px)' }}
-                >
+    // Permission labels mapping
+    const permissionLabels: Record<string, string> = {
+        // Products
+        'products.create': 'Thêm sản phẩm',
+        'products.edit': 'Sửa sản phẩm',
+        'products.delete': 'Xóa sản phẩm',
+
+        // Categories
+        'categories.create': 'Thêm danh mục',
+        'categories.edit': 'Sửa danh mục',
+        'categories.delete': 'Xóa danh mục',
+
+        // Orders
+        'orders.view_all': 'Xem tất cả đơn hàng',
+        'orders.update_payment': 'Cập nhật thanh toán',
+        'orders.update_delivery': 'Cập nhật giao hàng',
+        'orders.update_status': 'Cập nhật trạng thái',
+
+        // Stock
+        'stock.create': 'Tạo phiếu kho',
+        'stock.edit': 'Sửa phiếu kho',
+        'stock.delete': 'Xóa phiếu kho',
+        'stock.approve': 'Duyệt phiếu kho',
+        'stock.reject': 'Từ chối phiếu kho',
+        'stock.cancel': 'Hủy phiếu kho',
+
+        // Transactions
+        'transactions.view': 'Xem giao dịch',
+        'transactions.stats': 'Thống kê giao dịch',
+
+        // Users
+        'users.view': 'Xem người dùng',
+        'users.create': 'Thêm người dùng',
+        'users.edit': 'Sửa người dùng',
+        'users.delete': 'Xóa người dùng',
+
+        // Roles
+        'roles.view': 'Xem vai trò',
+        'roles.create': 'Thêm vai trò',
+        'roles.edit': 'Sửa vai trò',
+        'roles.delete': 'Xóa vai trò',
+
+        // Admin
+        'admin.all': 'Toàn quyền admin',
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-teal-500" />
+                        {role ? 'Chỉnh sửa vai trò' : 'Thêm vai trò mới'}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 gap-6">
-                        <div>
-                            <label
-                                htmlFor="name"
-                                className="mb-1 block text-sm font-medium text-gray-700"
-                            >
+                        <div className="space-y-2">
+                            <Label htmlFor="name">
                                 Tên vai trò{' '}
                                 <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
+                            </Label>
+                            <Input
                                 id="name"
                                 name="name"
                                 value={formData.name || ''}
                                 onChange={handleChange}
                                 required
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                disabled={loading}
                                 placeholder="Nhập tên vai trò"
                             />
                         </div>
 
-                        <div>
-                            <label
-                                htmlFor="description"
-                                className="mb-1 block text-sm font-medium text-gray-700"
-                            >
-                                Mô tả
-                            </label>
-                            <textarea
+                        <div className="space-y-2">
+                            <Label htmlFor="description">Mô tả</Label>
+                            <Textarea
                                 id="description"
                                 name="description"
                                 value={formData.description || ''}
                                 onChange={handleChange}
-                                rows={2}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                disabled={loading}
                                 placeholder="Nhập mô tả vai trò"
-                            ></textarea>
+                                rows={2}
+                            />
                         </div>
 
-                        <div>
-                            <h3 className="mb-3 text-sm font-medium text-gray-700">
-                                Phân quyền
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-gray-700">
+                                Phân quyền ({currentPermissions.length}/
+                                {permissions.all.length})
                             </h3>
-                            <div className="overflow-hidden rounded-lg">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-                                                Module
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-                                                Xem
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-                                                Thêm
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-                                                Sửa
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-                                                Xóa
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-                                                Tất cả
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200 bg-white">
-                                        {allModules.map((module) => {
-                                            const modulePermissions =
-                                                selectedPermissions[
-                                                    module.module
-                                                ] || []
-                                            const hasAllPermissions =
-                                                modulePermissions.length ===
-                                                    module.actions.length &&
-                                                module.actions.every((action) =>
-                                                    modulePermissions.includes(
-                                                        action,
+                            <div className="space-y-4">
+                                {Object.entries(permissions.grouped).map(
+                                    ([moduleKey, moduleData]: [
+                                        string,
+                                        any,
+                                    ]) => {
+                                        const modulePermissions =
+                                            moduleData.permissions
+                                        const selectedCount =
+                                            modulePermissions.filter(
+                                                (p: string) =>
+                                                    currentPermissions.includes(
+                                                        p,
                                                     ),
-                                                )
+                                            ).length
+                                        const isAllSelected =
+                                            selectedCount ===
+                                            modulePermissions.length
+                                        const isPartialSelected =
+                                            selectedCount > 0 &&
+                                            selectedCount <
+                                                modulePermissions.length
 
-                                            return (
-                                                <tr key={module.id}>
-                                                    <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
-                                                        {module.name}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={modulePermissions.includes(
-                                                                'view',
-                                                            )}
-                                                            onChange={(e) =>
-                                                                handlePermissionChange(
-                                                                    module.module,
-                                                                    'view',
-                                                                    e.target
-                                                                        .checked,
-                                                                )
-                                                            }
-                                                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                                                        />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={modulePermissions.includes(
-                                                                'create',
-                                                            )}
-                                                            onChange={(e) =>
-                                                                handlePermissionChange(
-                                                                    module.module,
-                                                                    'create',
-                                                                    e.target
-                                                                        .checked,
-                                                                )
-                                                            }
-                                                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                                                        />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={modulePermissions.includes(
-                                                                'edit',
-                                                            )}
-                                                            onChange={(e) =>
-                                                                handlePermissionChange(
-                                                                    module.module,
-                                                                    'edit',
-                                                                    e.target
-                                                                        .checked,
-                                                                )
-                                                            }
-                                                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                                                        />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={modulePermissions.includes(
-                                                                'delete',
-                                                            )}
-                                                            onChange={(e) =>
-                                                                handlePermissionChange(
-                                                                    module.module,
-                                                                    'delete',
-                                                                    e.target
-                                                                        .checked,
-                                                                )
-                                                            }
-                                                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                                                        />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-                                                        <input
-                                                            type="checkbox"
+                                        return (
+                                            <div
+                                                key={moduleKey}
+                                                className="rounded-lg border border-gray-200 p-4"
+                                            >
+                                                <div className="mb-3 flex items-center justify-between">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Checkbox
                                                             checked={
-                                                                hasAllPermissions
+                                                                isAllSelected
                                                             }
-                                                            onChange={(e) =>
+                                                            ref={(el) => {
+                                                                if (
+                                                                    el &&
+                                                                    'indeterminate' in
+                                                                        el
+                                                                ) {
+                                                                    ;(
+                                                                        el as HTMLInputElement
+                                                                    ).indeterminate =
+                                                                        isPartialSelected
+                                                                }
+                                                            }}
+                                                            onCheckedChange={(
+                                                                checked,
+                                                            ) =>
                                                                 handleSelectAllForModule(
-                                                                    module.module,
-                                                                    e.target
-                                                                        .checked,
+                                                                    modulePermissions,
+                                                                    Boolean(
+                                                                        checked,
+                                                                    ),
                                                                 )
                                                             }
-                                                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                                            disabled={loading}
                                                         />
-                                                    </td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                </table>
+                                                        <Label className="font-medium text-gray-900">
+                                                            {moduleData.name}
+                                                        </Label>
+                                                    </div>
+                                                    <span className="text-xs text-gray-500">
+                                                        {selectedCount}/
+                                                        {
+                                                            modulePermissions.length
+                                                        }
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+                                                    {modulePermissions.map(
+                                                        (
+                                                            permission: string,
+                                                        ) => {
+                                                            return (
+                                                                <div
+                                                                    key={
+                                                                        permission
+                                                                    }
+                                                                    className="flex items-center space-x-2"
+                                                                >
+                                                                    <Checkbox
+                                                                        checked={currentPermissions.includes(
+                                                                            permission,
+                                                                        )}
+                                                                        onCheckedChange={(
+                                                                            checked,
+                                                                        ) =>
+                                                                            handlePermissionChange(
+                                                                                permission,
+                                                                                Boolean(
+                                                                                    checked,
+                                                                                ),
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            loading
+                                                                        }
+                                                                    />
+                                                                    <Label className="text-sm text-gray-700">
+                                                                        {permissionLabels[
+                                                                            permission
+                                                                        ] ||
+                                                                            permission}
+                                                                    </Label>
+                                                                </div>
+                                                            )
+                                                        },
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )
+                                    },
+                                )}
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="flex justify-end gap-3 border-t p-6">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
-                    >
-                        Hủy
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        className="rounded-md bg-teal-500 px-4 py-2 text-white hover:bg-teal-600"
-                    >
-                        {role ? 'Cập nhật' : 'Thêm vai trò'}
-                    </button>
-                </div>
-            </div>
-        </div>
+                    <div className="flex justify-end gap-3 border-t pt-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onClose}
+                            disabled={loading}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={loading}
+                            className="bg-teal-500 hover:bg-teal-600"
+                        >
+                            {loading && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            {role ? 'Cập nhật' : 'Thêm vai trò'}
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }

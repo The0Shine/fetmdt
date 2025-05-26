@@ -1,6 +1,9 @@
+'use client'
+
 import type React from 'react'
-import { ShoppingCart, Heart, Star, Link } from 'lucide-react'
-import { Product } from '../../../../types/product'
+import { ShoppingCart, Heart, Star } from 'lucide-react'
+import type { Product } from '../../../../types/product'
+import { Link } from 'react-router-dom'
 
 interface ProductCardProps {
     product: Product
@@ -13,24 +16,47 @@ const ProductCard: React.FC<ProductCardProps> = ({
     onAddToCart,
     onAddToWishlist,
 }) => {
+    // Xử lý đường dẫn ảnh
+    const getImageUrl = (imageUrl: string | undefined) => {
+        if (!imageUrl) return '/placeholder.svg?height=192&width=192'
+
+        // Nếu là URL đầy đủ (bắt đầu bằng http hoặc https), sử dụng trực tiếp
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl
+        }
+
+        // Nếu là đường dẫn tương đối, thêm URL cơ sở của API
+        // Thay thế API_BASE_URL bằng URL thực tế của bạn
+        const API_BASE_URL =
+            import.meta.env.VITE_API_URL || 'http://localhost:5000'
+        return `${API_BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
+    }
+
+    // Lấy ID sản phẩm (hỗ trợ cả _id và id)
+    const productId = product._id
+
     return (
         <div className="group overflow-hidden rounded-lg bg-white shadow-sm transition-transform hover:-translate-y-1 hover:shadow-md">
             <div className="relative">
-                <Link href={`/shop/${product.id}`}>
+                <Link to={`/shop/product/${productId}`}>
                     <div className="relative h-48 bg-gray-100">
-                        {product.image ? (
-                            <img
-                                src={product.image || '/placeholder.svg'}
-                                alt={product.name}
-                                className="object-contain p-4"
-                            />
-                        ) : (
-                            <img
-                                src="/placeholder.svg?height=192&width=192"
-                                alt={product.name}
-                                className="object-contain"
-                            />
-                        )}
+                        <img
+                            src={
+                                getImageUrl(product.image) || '/placeholder.svg'
+                            }
+                            alt={product.name}
+                            className="h-full w-full object-contain p-4"
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                // Kiểm tra để tránh vòng lặp vô hạn
+                                if (!target.src.includes('placeholder.svg')) {
+                                    target.src =
+                                        '/placeholder.svg?height=192&width=192'
+                                }
+                                // Ngăn chặn sự kiện onError kích hoạt lại
+                                target.onerror = null
+                            }}
+                        />
                     </div>
                 </Link>
 
@@ -81,7 +107,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
             <div className="p-4">
                 <Link
-                    href={`/shop/${product.id}`}
+                    to={`/shop/product/${productId}`}
                     className="hover:text-blue-600"
                 >
                     <h3 className="line-clamp-2 h-12 font-medium text-gray-800">
@@ -97,7 +123,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                                     key={i}
                                     size={14}
                                     className={
-                                        i < Math.floor(product.rating)
+                                        i < Math.floor(product.rating ?? 0)
                                             ? 'fill-yellow-400 text-yellow-400'
                                             : 'text-gray-300'
                                     }

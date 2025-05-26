@@ -1,4 +1,4 @@
-import {
+import type {
     CategoriesResponse,
     Category,
     CategoryResponse,
@@ -46,26 +46,19 @@ export const createCategory = async (
 export const updateCategory = async (
     id: string,
     category: Partial<Category>,
-): Promise<CategoryResponse> => {
+) => {
     const response = await mainRepository.put<CategoryResponse>(
         `/api/categories/${id}`,
         category,
     )
-    if (!response) {
-        throw new Error(`Failed to update category with ID ${id}`)
-    }
+
     return response
 }
 
 // Xóa danh mục
-export const deleteCategory = async (
-    id: string,
-): Promise<{ success: boolean }> => {
+export const deleteCategory = async (id: string) => {
     const response = await mainRepository.delete<{ success: boolean }>(
         `/api/categories/${id}`,
     )
-    if (!response) {
-        throw new Error(`Failed to delete category with ID ${id}`)
-    }
     return response
 }

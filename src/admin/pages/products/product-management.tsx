@@ -243,15 +243,15 @@ export default function ProductManagement() {
             name: 'Giá bán',
             selector: (row: Product) => row.price,
             sortable: true,
-            cell: (row: Product) => row.price.toLocaleString() + 'đ',
+            cell: (row: Product) => row.price + 'đ',
         },
         {
             name: 'Tồn kho',
-            selector: (row: Product) => row.stock,
+            selector: (row: Product) => row.quantity,
             sortable: true,
             cell: (row: Product) =>
                 row.status === 'in-stock' ? (
-                    <span className="text-gray-700">{row.stock}</span>
+                    <span className="text-gray-700">{row.quantity}</span>
                 ) : (
                     <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600">
                         Hết Hàng

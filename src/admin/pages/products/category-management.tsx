@@ -3,7 +3,17 @@
 import type React from 'react'
 
 import { useState, useEffect } from 'react'
-import { Search, Plus, Edit, Trash2, X, AlertCircle } from 'lucide-react'
+import {
+    Search,
+    Plus,
+    Edit,
+    Trash2,
+    X,
+    AlertCircle,
+    ChevronDown,
+    ChevronUp,
+    PlusCircle,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
     getCategories,
@@ -11,7 +21,7 @@ import {
     updateCategory,
     createCategory,
 } from '../../../services/apiCategory.service'
-import { Category } from '../../../types/category'
+import type { Category, Subcategory } from '../../../types/category'
 
 interface CategoryModalProps {
     isOpen: boolean
@@ -30,6 +40,9 @@ export default function CategoryManagement() {
     )
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [expandedCategories, setExpandedCategories] = useState<
+        Record<string, boolean>
+    >({})
 
     // Tải danh sách danh mục
     const loadCategories = async () => {
@@ -42,6 +55,7 @@ export default function CategoryManagement() {
                 ...category,
                 color: category.color || getRandomColor(),
                 productCount: category.productCount || 0,
+                subcategories: category.subcategories || [],
             }))
             setCategories(categoriesWithUI)
         } catch (err) {
@@ -68,7 +82,10 @@ export default function CategoryManagement() {
             category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             category.description
                 ?.toLowerCase()
-                .includes(searchTerm.toLowerCase()),
+                .includes(searchTerm.toLowerCase()) ||
+            category.subcategories?.some((sub) =>
+                sub.name.toLowerCase().includes(searchTerm.toLowerCase()),
+            ),
     )
 
     // Mở modal thêm danh mục mới
@@ -131,6 +148,14 @@ export default function CategoryManagement() {
             'bg-gray-100',
         ]
         return colors[Math.floor(Math.random() * colors.length)]
+    }
+
+    // Xử lý mở rộng/thu gọn danh mục
+    const toggleCategoryExpand = (categoryId: string) => {
+        setExpandedCategories((prev) => ({
+            ...prev,
+            [categoryId]: !prev[categoryId],
+        }))
     }
 
     return (
@@ -240,6 +265,39 @@ export default function CategoryManagement() {
                                                     className="text-gray-600"
                                                 />
                                             </button>
+                                            {category.subcategories &&
+                                                category.subcategories.length >
+                                                    0 && (
+                                                    <button
+                                                        className="rounded-full p-1 hover:bg-white"
+                                                        onClick={() =>
+                                                            toggleCategoryExpand(
+                                                                category._id as string,
+                                                            )
+                                                        }
+                                                        title={
+                                                            expandedCategories[
+                                                                category._id as string
+                                                            ]
+                                                                ? 'Thu gọn'
+                                                                : 'Mở rộng'
+                                                        }
+                                                    >
+                                                        {expandedCategories[
+                                                            category._id as string
+                                                        ] ? (
+                                                            <ChevronUp
+                                                                size={16}
+                                                                className="text-gray-600"
+                                                            />
+                                                        ) : (
+                                                            <ChevronDown
+                                                                size={16}
+                                                                className="text-gray-600"
+                                                            />
+                                                        )}
+                                                    </button>
+                                                )}
                                         </div>
                                     </div>
                                     <div className="mt-2 text-sm text-gray-600">
@@ -247,7 +305,54 @@ export default function CategoryManagement() {
                                             {category.productCount}
                                         </span>{' '}
                                         sản phẩm
+                                        {category.subcategories && (
+                                            <span className="ml-2">
+                                                •{' '}
+                                                {category.subcategories.length}{' '}
+                                                danh mục con
+                                            </span>
+                                        )}
                                     </div>
+
+                                    {/* Danh sách danh mục con */}
+                                    {expandedCategories[
+                                        category._id as string
+                                    ] &&
+                                        category.subcategories &&
+                                        category.subcategories.length > 0 && (
+                                            <div className="mt-3 border-t border-gray-200 pt-3">
+                                                <h4 className="mb-2 text-sm font-medium text-gray-700">
+                                                    Danh mục con:
+                                                </h4>
+                                                <div className="space-y-2">
+                                                    {category.subcategories.map(
+                                                        (subcategory) => (
+                                                            <div
+                                                                key={
+                                                                    subcategory.id
+                                                                }
+                                                                className="flex items-center justify-between rounded-md bg-white/50 p-2"
+                                                            >
+                                                                <div>
+                                                                    <span className="text-sm font-medium">
+                                                                        {
+                                                                            subcategory.name
+                                                                        }
+                                                                    </span>
+                                                                    <span className="ml-2 text-xs text-gray-500">
+                                                                        (
+                                                                        {
+                                                                            subcategory.slug
+                                                                        }
+                                                                        )
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                 </div>
                             ))
                         )}
@@ -273,6 +378,7 @@ function CategoryModal({
     onClose,
     category,
     onSave,
+    allCategories,
 }: CategoryModalProps) {
     const [formData, setFormData] = useState<Partial<Category>>(
         category || {
@@ -281,8 +387,19 @@ function CategoryModal({
             description: '',
             color: 'bg-blue-100',
             icon: '📁',
+            subcategories: [],
         },
     )
+
+    const [subcategories, setSubcategories] = useState<Subcategory[]>(
+        category?.subcategories || [],
+    )
+
+    const [newSubcategory, setNewSubcategory] = useState<Partial<Subcategory>>({
+        id: '',
+        name: '',
+        slug: '',
+    })
 
     const handleChange = (
         e: React.ChangeEvent<
@@ -293,6 +410,55 @@ function CategoryModal({
         setFormData({ ...formData, [name]: value })
     }
 
+    const handleSubcategoryChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+        index: number,
+    ) => {
+        const { name, value } = e.target
+        const updatedSubcategories = [...subcategories]
+        updatedSubcategories[index] = {
+            ...updatedSubcategories[index],
+            [name]: value,
+        }
+        setSubcategories(updatedSubcategories)
+    }
+
+    const handleNewSubcategoryChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        const { name, value } = e.target
+        setNewSubcategory({
+            ...newSubcategory,
+            [name]: value,
+        })
+    }
+
+    const addSubcategory = () => {
+        if (!newSubcategory.name) return
+
+        // Tạo slug từ tên nếu không có
+        const slug =
+            newSubcategory.slug ||
+            newSubcategory.name?.toLowerCase().replace(/\s+/g, '-') ||
+            ''
+        const id = newSubcategory.id || slug
+
+        const newSub: Subcategory = {
+            id,
+            name: newSubcategory.name,
+            slug,
+        }
+
+        setSubcategories([...subcategories, newSub])
+        setNewSubcategory({ id: '', name: '', slug: '' })
+    }
+
+    const removeSubcategory = (index: number) => {
+        const updatedSubcategories = [...subcategories]
+        updatedSubcategories.splice(index, 1)
+        setSubcategories(updatedSubcategories)
+    }
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         // Tạo slug từ tên nếu không có
@@ -300,7 +466,7 @@ function CategoryModal({
             formData.slug ||
             formData.name?.toLowerCase().replace(/\s+/g, '-') ||
             ''
-        onSave({ ...(formData as Category), slug })
+        onSave({ ...(formData as Category), slug, subcategories })
     }
 
     const colorOptions = [
@@ -324,7 +490,7 @@ function CategoryModal({
 
     return (
         <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b p-6">
                     <h2 className="text-xl font-semibold">
                         {category ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}
@@ -379,45 +545,133 @@ function CategoryModal({
 
                         <div>
                             <label
-                                htmlFor="description"
+                                htmlFor="icon"
                                 className="mb-1 block text-sm font-medium text-gray-700"
                             >
-                                Mô tả
+                                Icon
                             </label>
-                            <textarea
-                                id="description"
-                                name="description"
-                                value={formData.description || ''}
+                            <input
+                                type="text"
+                                id="icon"
+                                name="icon"
+                                value={formData.icon || '📁'}
                                 onChange={handleChange}
-                                rows={2}
                                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                placeholder="Nhập mô tả danh mục"
-                            ></textarea>
+                                placeholder="Emoji hoặc tên icon"
+                            />
                         </div>
 
-                        <div>
-                            <label
-                                htmlFor="color"
-                                className="mb-1 block text-sm font-medium text-gray-700"
-                            >
-                                Màu sắc
-                            </label>
-                            <select
-                                id="color"
-                                name="color"
-                                value={formData.color || 'bg-blue-100'}
-                                onChange={handleChange}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                            >
-                                {colorOptions.map((option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
+                        {/* Phần danh mục con */}
+                        <div className="mt-6">
+                            <div className="mb-2 flex items-center justify-between">
+                                <h3 className="text-md font-medium text-gray-700">
+                                    Danh mục con
+                                </h3>
+                            </div>
+
+                            {/* Danh sách danh mục con hiện tại */}
+                            {subcategories.length > 0 && (
+                                <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3">
+                                    <div className="space-y-3">
+                                        {subcategories.map(
+                                            (subcategory, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm"
+                                                >
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex items-center space-x-2">
+                                                            <input
+                                                                type="text"
+                                                                name="name"
+                                                                value={
+                                                                    subcategory.name
+                                                                }
+                                                                onChange={(e) =>
+                                                                    handleSubcategoryChange(
+                                                                        e,
+                                                                        index,
+                                                                    )
+                                                                }
+                                                                className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                                                placeholder="Tên danh mục con"
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                name="slug"
+                                                                value={
+                                                                    subcategory.slug
+                                                                }
+                                                                onChange={(e) =>
+                                                                    handleSubcategoryChange(
+                                                                        e,
+                                                                        index,
+                                                                    )
+                                                                }
+                                                                className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                                                placeholder="Slug"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            removeSubcategory(
+                                                                index,
+                                                            )
+                                                        }
+                                                        className="rounded-full p-1 text-red-500 hover:bg-red-50"
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Form thêm danh mục con mới */}
+                            <div className="rounded-md border border-dashed border-gray-300 p-3">
+                                <h4 className="mb-2 text-sm font-medium text-gray-600">
+                                    Thêm danh mục con mới
+                                </h4>
+                                <div className="flex items-end space-x-2">
+                                    <div className="flex-1 space-y-1">
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={newSubcategory.name || ''}
+                                            onChange={
+                                                handleNewSubcategoryChange
+                                            }
+                                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                            placeholder="Tên danh mục con"
+                                        />
+                                        <input
+                                            type="text"
+                                            name="slug"
+                                            value={newSubcategory.slug || ''}
+                                            onChange={
+                                                handleNewSubcategoryChange
+                                            }
+                                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                            placeholder="Slug (tự động tạo nếu để trống)"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={addSubcategory}
+                                        className="rounded-md bg-teal-100 px-3 py-2 text-sm text-teal-700 hover:bg-teal-200"
                                     >
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
+                                        <PlusCircle
+                                            size={16}
+                                            className="mr-1 inline"
+                                        />{' '}
+                                        Thêm
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

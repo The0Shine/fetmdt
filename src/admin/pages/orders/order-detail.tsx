@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     ArrowLeft,
     Printer,
@@ -10,9 +10,14 @@ import {
     MapPin,
     CreditCard,
     Package,
+    Mail as Email,
 } from 'lucide-react'
 import OrderProcessing from './components/order-processing'
 import { Link, useParams } from 'react-router-dom'
+import { mainRepository } from '../../../utils/Repository'
+import { OrderData, OrderResponse } from '../../../types/order'
+import { getOrderById, updateOrderStatus } from '@/services/apiOrder.service'
+import { get } from 'http'
 
 export default function OrderDetail() {
     const [orderStatus, setOrderStatus] = useState<
@@ -21,49 +26,130 @@ export default function OrderDetail() {
     const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>(
         'unpaid',
     )
+    const [orderData, setOrderData] = useState<OrderData | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const { orderId } = useParams<{ orderId: string }>()
-    // Dữ liệu mẫu cho đơn hàng
-    const orderData = {
-        id: orderId,
-        date: '17/04/2023 14:30',
-        customer: {
-            name: 'Nguyễn Văn A',
-            email: 'nguyenvana@example.com',
-            phone: '0987654321',
-            address: '123 Đường ABC, Phường XYZ, Quận 1, TP. Hồ Chí Minh',
-        },
-        items: [
-            {
-                id: 1,
-                name: 'iPhone 14 Pro Max 256GB',
-                price: 28990000,
-                quantity: 1,
-                total: 28990000,
-            },
-            {
-                id: 2,
-                name: 'Apple Watch Series 8',
-                price: 10990000,
-                quantity: 1,
-                total: 10990000,
-            },
-        ],
-        subtotal: 39980000,
-        shipping: 50000,
-        tax: 3998000,
-        total: 44028000,
-        paymentMethod: 'COD',
-        note: 'Giao hàng trong giờ hành chính',
-    }
 
-    const handleStatusChange = (
+    useEffect(() => {
+        // Sửa hàm fetchOrderDetails
+        const fetchOrderDetails = async () => {
+            if (!orderId) return
+
+            try {
+                setLoading(true)
+                const response = await getOrderById(orderId)
+
+                // Kiểm tra kiểu dữ liệu response
+                {
+                    if (response) {
+                        const order = response
+
+                        // Transform the data to match our frontend structure
+                        const mappedOrder: OrderData = {
+                            _id: order._id,
+                            date: order.createdAt,
+                            customer: {
+                                email: order.user.email,
+                                phone: '', // chưa có dữ liệu phone
+                                address: '', // chưa có dữ liệu address
+                            },
+                            items: order.orderItems.map((item: any) => ({
+                                // map từng order item theo interface OrderItem
+                                // bạn cần xác định OrderItem type cụ thể
+                                ...item,
+                            })),
+                            subtotal: order.itemsPrice,
+                            shippingAddress: {
+                                address: order.shippingAddress.address,
+                                city: order.shippingAddress.city, // chưa có dữ liệu thành phố
+                            },
+                            shipping: 0, // chưa có thông tin phí vận chuyển
+                            tax: 0, // chưa có thông tin thuế
+                            total: order.totalPrice,
+                            paymentMethod: order.paymentMethod,
+                            note: '', // chưa có thông tin ghi chú
+                        }
+
+                        setOrderData(mappedOrder)
+                        console.log(mappedOrder)
+
+                        setOrderStatus(order.status)
+                        setPaymentStatus(order.isPaid ? 'paid' : 'unpaid')
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching order details:', err)
+                setError('Đã xảy ra lỗi khi tải thông tin đơn hàng')
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchOrderDetails()
+    }, [orderId])
+
+    // Sửa hàm handleStatusChange
+    const handleStatusChange = async (
         status: 'pending' | 'processing' | 'completed' | 'cancelled',
     ) => {
-        setOrderStatus(status)
-        // Nếu đơn hàng hoàn thành, cập nhật trạng thái thanh toán thành đã thanh toán
-        if (status === 'completed') {
-            setPaymentStatus('paid')
+        try {
+            interface StatusResponse {
+                success: boolean
+                message?: string
+            }
+
+            if (!orderId) {
+                alert('Không tìm thấy mã đơn hàng')
+                return
+            }
+            const response = await updateOrderStatus(orderId, status)
+            console.log('Update response:', response)
+
+            if (response) {
+                setOrderStatus(status)
+                // If order is completed, update payment status to paid
+                if (status === 'completed') {
+                    setPaymentStatus('paid')
+                }
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error)
+            alert('Đã xảy ra lỗi khi cập nhật trạng thái đơn hàng')
         }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center p-6">
+                <div className="text-center">
+                    <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-teal-500"></div>
+                    <p className="mt-4 text-gray-600">
+                        Đang tải thông tin đơn hàng...
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
+    if (error || !orderData) {
+        return (
+            <div className="p-6">
+                <div className="rounded-md bg-red-50 p-4">
+                    <h2 className="font-medium text-red-800">Lỗi</h2>
+                    <p className="text-red-600">
+                        {error || 'Không thể tải thông tin đơn hàng'}
+                    </p>
+                    <Link
+                        to="/admin/orders"
+                        className="mt-4 inline-flex items-center text-teal-500 hover:text-teal-600"
+                    >
+                        <ArrowLeft size={16} className="mr-1" /> Quay lại danh
+                        sách đơn hàng
+                    </Link>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -76,7 +162,7 @@ export default function OrderDetail() {
                         </h1>
                         <div className="flex items-center text-sm text-gray-500">
                             <Link
-                                to="/orders"
+                                to="/admin/orders"
                                 className="flex items-center text-teal-500 hover:text-teal-600"
                             >
                                 <ArrowLeft size={16} className="mr-1" /> Quay
@@ -88,15 +174,12 @@ export default function OrderDetail() {
                         <button className="flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50">
                             <Printer size={16} className="mr-1" /> In đơn hàng
                         </button>
-                        <button className="flex items-center rounded-md bg-teal-500 px-4 py-2 text-white hover:bg-teal-600">
-                            <Download size={16} className="mr-1" /> Xuất PDF
-                        </button>
                     </div>
                 </div>
             </div>
 
             <OrderProcessing
-                orderId={orderId}
+                orderId={orderId ?? ''}
                 currentStatus={orderStatus}
                 onStatusChange={handleStatusChange}
             />
@@ -108,13 +191,14 @@ export default function OrderDetail() {
                         tin khách hàng
                     </h2>
                     <div className="space-y-2">
-                        <p className="font-medium">{orderData.customer.name}</p>
                         <p className="text-gray-600">
+                            <Email size={16} className="mr-1 text-gray-400" />{' '}
                             {orderData.customer.email}
                         </p>
                         <p className="flex items-center text-gray-600">
                             <Phone size={16} className="mr-1 text-gray-400" />{' '}
-                            {orderData.customer.phone}
+                            {orderData.customer.phone ||
+                                'Chưa có số điện thoại'}
                         </p>
                     </div>
                 </div>
@@ -124,9 +208,10 @@ export default function OrderDetail() {
                         <MapPin size={18} className="mr-2 text-teal-500" /> Địa
                         chỉ giao hàng
                     </h2>
-                    <p className="text-gray-600">
-                        {orderData.customer.address}
-                    </p>
+                    <div className="space-y-1 text-gray-600">
+                        <p>{orderData.shippingAddress.address}</p>
+                        <p>{orderData.shippingAddress.city}</p>
+                    </div>
                 </div>
 
                 <div className="rounded-lg bg-white p-6 shadow-sm">
@@ -184,18 +269,18 @@ export default function OrderDetail() {
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
                             {orderData.items.map((item) => (
-                                <tr key={item.id}>
+                                <tr key={item._id}>
                                     <td className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
                                         {item.name}
                                     </td>
                                     <td className="px-6 py-4 text-right text-sm whitespace-nowrap text-gray-500">
-                                        {item.price.toLocaleString()}đ
+                                        {item.price}đ
                                     </td>
                                     <td className="px-6 py-4 text-right text-sm whitespace-nowrap text-gray-500">
                                         {item.quantity}
                                     </td>
                                     <td className="px-6 py-4 text-right text-sm whitespace-nowrap text-gray-900">
-                                        {item.total.toLocaleString()}đ
+                                        {item.total}đ
                                     </td>
                                 </tr>
                             ))}
@@ -205,27 +290,19 @@ export default function OrderDetail() {
 
                 <div className="mt-6 border-t pt-4">
                     <div className="flex justify-between py-2">
-                        <span className="text-gray-600">Tạm tính:</span>
-                        <span className="font-medium">
-                            {orderData.subtotal.toLocaleString()}đ
-                        </span>
-                    </div>
-                    <div className="flex justify-between py-2">
                         <span className="text-gray-600">Phí vận chuyển:</span>
                         <span className="font-medium">
-                            {orderData.shipping.toLocaleString()}đ
+                            {orderData.shipping}đ
                         </span>
                     </div>
                     <div className="flex justify-between py-2">
                         <span className="text-gray-600">Thuế (10%):</span>
-                        <span className="font-medium">
-                            {orderData.tax.toLocaleString()}đ
-                        </span>
+                        <span className="font-medium">{orderData.tax}đ</span>
                     </div>
                     <div className="flex justify-between py-2 text-lg font-bold">
                         <span>Tổng cộng:</span>
                         <span className="text-teal-600">
-                            {orderData.total.toLocaleString()}đ
+                            {orderData.total}đ
                         </span>
                     </div>
                 </div>

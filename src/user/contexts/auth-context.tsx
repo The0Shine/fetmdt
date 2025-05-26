@@ -1,6 +1,8 @@
+'use client'
+
 import type React from 'react'
 import { createContext, useState, useEffect, useContext } from 'react'
-import { User } from '../../types/user'
+import type { User } from '../../types/user'
 import { mainRepository } from '../../utils/Repository'
 import { getMe, loginApi } from '../../services/apiAuth.service'
 import { useNavigate } from 'react-router-dom'
@@ -29,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
     const [user, setUser] = useState<User | null>(null)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -36,24 +39,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!accessToken) {
             setUser(null)
             setIsAuthenticated(false)
+            setLoading(false)
             return
         }
 
         const fetchUser = async () => {
             try {
-                const response = await mainRepository.get<{ user: User }>(
-                    'api/auth/me',
-                )
-                if (response) {
-                    setUser(response.user)
+                const userData = await getMe()
+                if (userData) {
+                    setUser(userData)
                     setIsAuthenticated(true)
                 } else {
                     setUser(null)
                     setIsAuthenticated(false)
+                    localStorage.removeItem('access_token')
+                    localStorage.removeItem('refresh_token')
                 }
             } catch (error) {
+                console.error('Error fetching user data:', error)
                 setUser(null)
                 setIsAuthenticated(false)
+                localStorage.removeItem('access_token')
+                localStorage.removeItem('refresh_token')
+            } finally {
+                setLoading(false)
             }
         }
 
@@ -63,36 +72,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const login = async (email: string, password: string): Promise<boolean> => {
         try {
             const response = await loginApi({ username: email, password })
-            const { accessToken, refresh_token } = response.data
+            console.log('Login response:', response)
 
-            localStorage.setItem('access_token', accessToken)
-            localStorage.setItem('refresh_token', refresh_token)
-            const user = await getMe()
-            setUser(user)
-            console.log(user)
+            // Kiểm tra và ép kiểu response
+            if (
+                response &&
+                typeof response === 'object' &&
+                'data' in response
+            ) {
+                const { accessToken, refreshToken } = response.data as {
+                    accessToken: string
+                    refreshToken: string
+                }
 
-            localStorage.setItem('user', JSON.stringify(user))
+                localStorage.setItem('access_token', accessToken)
+                localStorage.setItem('refresh_token', refreshToken)
 
-            if (user?.role?.name === 'admin') {
-                navigate('/admin/')
-            } else {
-                navigate('/')
+                const userData = await getMe()
+                setUser(userData)
+                setIsAuthenticated(true)
+
+                if (userData?.role?.name === 'Super Admin') {
+                    navigate('/admin/')
+                } else {
+                    navigate('/')
+                }
+                return true
             }
-            return true
+            return false
         } catch (error) {
             console.error('Login failed:', error)
             return false
         }
     }
 
-    const logout = () => {
-        mainRepository.post('/logout')
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
-        setUser(null)
-        setIsAuthenticated(false)
-        navigate('/login')
+    const logout = async () => {
+        try {
+            await mainRepository.post('/api/auth/logout')
+        } catch (error) {
+            console.error('Logout API error:', error)
+        } finally {
+            localStorage.removeItem('access_token')
+            localStorage.removeItem('refresh_token')
+            localStorage.removeItem('user')
+            setUser(null)
+            setIsAuthenticated(false)
+            navigate('/login')
+        }
     }
 
     const register = async (
@@ -101,42 +127,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password: string,
     ): Promise<boolean> => {
         try {
-            const res = await mainRepository.post<{
-                user: User
-                accessToken: string
-                refreshToken: string
-            }>('/register', {
+            const response = await mainRepository.post('/api/auth/register', {
                 name,
                 email,
                 password,
             })
-            if (res) {
-                const { accessToken, refreshToken, user } = res
-                localStorage.setItem('access_token', accessToken)
-                localStorage.setItem('refresh_token', refreshToken)
-                localStorage.setItem('user', JSON.stringify(user))
-                setUser(user)
+
+            // Kiểm tra và ép kiểu response
+            if (
+                response &&
+                typeof response === 'object' &&
+                'success' in response &&
+                response &&
+                'data' in response
+            ) {
+                const data = response.data as {
+                    accessToken: string
+                    refreshToken: string
+                    user: User
+                }
+
+                localStorage.setItem('access_token', data.accessToken)
+                localStorage.setItem('refresh_token', data.refreshToken)
+                setUser(data.user)
                 setIsAuthenticated(true)
                 return true
             }
             return false
-        } catch {
+        } catch (error) {
+            console.error('Registration failed:', error)
             return false
         }
     }
 
     const updateProfile = async (userData: Partial<User>): Promise<boolean> => {
         try {
-            const res = await mainRepository.put<{ user: User }>(
-                '/profile',
+            const response = await mainRepository.put(
+                '/api/users/profile',
                 userData,
             )
-            if (res && res.user) {
-                setUser(res.user)
+
+            // Kiểm tra và ép kiểu response
+            if (
+                response &&
+                typeof response === 'object' &&
+                'success' in response &&
+                response
+            ) {
+                setUser((prev) => (prev ? { ...prev, ...userData } : null))
                 return true
             }
             return false
-        } catch {
+        } catch (error) {
+            console.error('Profile update failed:', error)
             return false
         }
     }
@@ -146,9 +189,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         newPassword: string,
     ): Promise<boolean> => {
         try {
-            await mainRepository.put('/password', { oldPassword, newPassword })
-            return true
-        } catch {
+            const response = await mainRepository.put('/api/users/password', {
+                oldPassword,
+                newPassword,
+            })
+
+            // Kiểm tra và ép kiểu response
+            return (response &&
+                typeof response === 'object' &&
+                'success' in response &&
+                (response as { success: boolean }).success === true) as boolean
+        } catch (error) {
+            console.error('Password update failed:', error)
             return false
         }
     }

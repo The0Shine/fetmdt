@@ -1,116 +1,168 @@
 import type {
-    IStockAdjustment,
-    IStockAdjustmentProduct,
-    StockAdjustmentQueryParams,
-    StockAdjustmentResponse,
-    StockAdjustmentsResponse,
-} from '../admin/interfaces/stock.interface'
-import { mainRepository } from '../utils/Repository'
+    StockVoucherFormData,
+    IStockVoucher,
+    StockQueryParams,
+    StockHistoryQueryParams,
+    SingleStockResponse,
+    StockVouchersResponse,
+    StockHistoryResponse,
+} from '@/admin/interfaces/stock.interface'
+import { mainRepository } from '@/utils/Repository'
 
-// Lấy danh sách điều chỉnh kho
-export const getStockAdjustments = async (
-    params: StockAdjustmentQueryParams = {},
-): Promise<StockAdjustmentsResponse> => {
-    // Chuyển đổi params thành query string
+// Interfaces
+interface Pagination {
+    page: number
+    limit: number
+    totalPages: number
+}
+
+interface BasicResponse<T> {
+    success: boolean
+    data: T
+}
+
+interface ListResponse<T> {
+    success: boolean
+    count: number
+    total: number
+    pagination: Pagination
+    data: T[]
+}
+
+// Utilities
+const buildQueryString = (params: Record<string, any>): string => {
     const queryParams = new URLSearchParams()
-
     Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (
+            value !== undefined &&
+            value !== null &&
+            value !== '' &&
+            value !== 'all'
+        ) {
             queryParams.append(key, String(value))
         }
     })
-
-    const queryString = queryParams.toString()
-    const url = queryString
-        ? `/api/stock-adjustments?${queryString}`
-        : '/api/stock-adjustments'
-
-    return await mainRepository.get<StockAdjustmentsResponse>(url)
+    return queryParams.toString()
 }
 
-// Lấy điều chỉnh kho theo ID
-export const getStockAdjustmentById = async (
+export const convertVoucherToBackendModel = (
+    voucher: StockVoucherFormData,
+): any => ({
+    type: voucher.type,
+    reason: voucher.reason,
+    items: voucher.items.map((item) => ({
+        product: item.product,
+        productName: item.productName,
+        quantity: item.quantity,
+        unit: item.unit,
+        costPrice: item.costPrice,
+        note: item.note,
+    })),
+    notes: voucher.notes,
+    relatedOrder: voucher.relatedOrder,
+})
+
+// API Functions
+
+export const getStockVouchers = async (
+    params: StockQueryParams = {},
+): Promise<StockVouchersResponse> => {
+    const query = buildQueryString(params)
+    const url = query ? `/api/stock?${query}` : '/api/stock'
+    return await mainRepository.get(url)
+}
+
+export const getStockVoucherById = async (
     id: string,
-): Promise<StockAdjustmentResponse> => {
-    return await mainRepository.get<StockAdjustmentResponse>(
-        `/api/stock-adjustments/${id}`,
-    )
+): Promise<SingleStockResponse> => {
+    return await mainRepository.get(`/api/stock/${id}`)
 }
 
-// Tạo điều chỉnh kho mới
-export const createStockAdjustment = async (
-    adjustment: Partial<IStockAdjustment>,
-): Promise<StockAdjustmentResponse> => {
-    return await mainRepository.post<StockAdjustmentResponse>(
-        '/api/stock-adjustments',
-        adjustment,
-    )
+export const createStockVoucher = async (
+    voucher: StockVoucherFormData,
+): Promise<SingleStockResponse> => {
+    const data = convertVoucherToBackendModel(voucher)
+    return await mainRepository.post('/api/stock', data)
 }
 
-// Cập nhật điều chỉnh kho
-export const updateStockAdjustment = async (
+export const updateStockVoucher = async (
     id: string,
-    adjustment: Partial<IStockAdjustment>,
-): Promise<StockAdjustmentResponse> => {
-    return await mainRepository.put<StockAdjustmentResponse>(
-        `/api/stock-adjustments/${id}`,
-        adjustment,
-    )
+    voucher: Partial<IStockVoucher>,
+): Promise<SingleStockResponse> => {
+    return await mainRepository.put(`/api/stock/${id}`, voucher)
 }
 
-// Xóa điều chỉnh kho
-export const deleteStockAdjustment = async (
+export const deleteStockVoucher = async (
     id: string,
 ): Promise<{ success: boolean }> => {
-    return await mainRepository.delete<{ success: boolean }>(
-        `/api/stock-adjustments/${id}`,
-    )
+    return await mainRepository.delete(`/api/stock/${id}`)
 }
 
-// Removed updateStockAdjustmentStatus function since status is always completed
-
-// Chuyển đổi từ frontend model sang backend model
-export const convertToBackendModel = (
-    adjustment: any,
-): Partial<IStockAdjustment> => {
-    const { id, ...rest } = adjustment
-
-    // Chuyển đổi products
-    const products: IStockAdjustmentProduct[] = adjustment.products.map(
-        (p: any) => {
-            const { id, productName, ...productRest } = p
-            return productRest
-        },
-    )
-
-    return {
-        ...rest,
-        products,
+export const approveStockVoucher = async (id: string) => {
+    try {
+        const response = await mainRepository.patch(`/api/stock/${id}/approve`)
+        // Nếu muốn trả về data của response
+        return response
+    } catch (error) {
+        console.error(`Error approving stock voucher with id ${id}:`, error)
+        // Ném lỗi lên caller để caller bắt và xử lý
+        throw error
     }
 }
 
-// Chuyển đổi từ backend model sang frontend model
-export const convertToFrontendModel = (adjustment: IStockAdjustment): any => {
-    const { _id, ...rest } = adjustment
+export const rejectStockVoucher = async (
+    id: string,
+    rejectionReason?: string,
+): Promise<SingleStockResponse> => {
+    return await mainRepository.patch(`/api/stock/${id}/reject`, {
+        rejectionReason,
+    })
+}
 
-    // Chuyển đổi products
-    const products = adjustment.products.map(
-        (p: IStockAdjustmentProduct, index: number) => {
-            return {
-                id: index + 1,
-                productId: p.productId,
-                productName: p.productName || '',
-                quantity: p.quantity,
-                unit: p.unit,
-                note: p.note,
-                costPrice: p.costPrice || 0, // Added cost price with default value
-            }
-        },
+export const cancelStockVoucher = async (
+    id: string,
+): Promise<SingleStockResponse> => {
+    return await mainRepository.patch(`/api/stock/${id}/cancel`)
+}
+
+export const getStockHistory = async (
+    params: StockHistoryQueryParams = {},
+): Promise<StockHistoryResponse> => {
+    const query = buildQueryString(params)
+    const url = query ? `/api/stock/history?${query}` : '/api/stock/history'
+    return await mainRepository.get(url)
+}
+
+// Bulk Actions
+export const bulkApproveVouchers = async (
+    ids: string[],
+): Promise<{ success: boolean; results: any[] }> => {
+    const results = await Promise.allSettled(
+        ids.map((id) => approveStockVoucher(id)),
     )
-
     return {
-        id: _id,
-        ...rest,
-        products,
+        success: results.every((r) => r.status === 'fulfilled'),
+        results: results.map((res, i) => ({
+            id: ids[i],
+            success: res.status === 'fulfilled',
+            error: res.status === 'rejected' ? res.reason : null,
+        })),
+    }
+}
+
+export const bulkRejectVouchers = async (
+    ids: string[],
+    rejectionReason: string,
+): Promise<{ success: boolean; results: any[] }> => {
+    const results = await Promise.allSettled(
+        ids.map((id) => rejectStockVoucher(id, rejectionReason)),
+    )
+    return {
+        success: results.every((r) => r.status === 'fulfilled'),
+        results: results.map((res, i) => ({
+            id: ids[i],
+            success: res.status === 'fulfilled',
+            error: res.status === 'rejected' ? res.reason : null,
+        })),
     }
 }

@@ -101,7 +101,8 @@ export const uploadMultipleImages = async (
             Array.isArray(responseData.data)
         ) {
             const imageUrls = responseData.data.map(
-                (item) => item.secure_url || item.url,
+                (item: { secure_url: any; url: any }) =>
+                    item.secure_url || item.url,
             )
             console.log('URLs hình ảnh đã upload:', imageUrls)
             return imageUrls

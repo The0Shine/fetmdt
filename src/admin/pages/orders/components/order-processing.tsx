@@ -1,220 +1,246 @@
+'use client'
 
-import { useState } from "react"
-import { Check, X, Truck, CreditCard, Package, AlertTriangle } from "lucide-react"
+import { useState } from 'react'
+import { mainRepository } from '../../../../utils/Repository'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 interface OrderProcessingProps {
-  orderId: string
-  currentStatus: "pending" | "processing" | "completed" | "cancelled"
-  onStatusChange: (status: "pending" | "processing" | "completed" | "cancelled") => void
+    orderId: string
+    currentStatus: 'pending' | 'processing' | 'completed' | 'cancelled'
+    onStatusChange: (
+        status: 'pending' | 'processing' | 'completed' | 'cancelled',
+    ) => void
 }
 
-export default function OrderProcessing({ orderId, currentStatus, onStatusChange }: OrderProcessingProps) {
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [actionType, setActionType] = useState<"confirm" | "cancel" | "ship" | "complete" | null>(null)
+interface StatusResponse {
+    success: boolean
+    message?: string
+    data?: any
+}
 
-  const handleAction = (type: "confirm" | "cancel" | "ship" | "complete") => {
-    setActionType(type)
-    setShowConfirm(true)
-  }
+export default function OrderProcessing({
+    orderId,
+    currentStatus,
+    onStatusChange,
+}: OrderProcessingProps) {
+    const [loading, setLoading] = useState(false)
 
-  const confirmAction = () => {
-    switch (actionType) {
-      case "confirm":
-        onStatusChange("processing")
-        break
-      case "cancel":
-        onStatusChange("cancelled")
-        break
-      case "ship":
-        // Trong thực tế, đây là nơi bạn sẽ cập nhật trạng thái vận chuyển
-        break
-      case "complete":
-        onStatusChange("completed")
-        break
+    const updateOrderStatus = async (
+        status: 'pending' | 'processing' | 'completed' | 'cancelled',
+    ) => {
+        if (status === currentStatus) return
+
+        try {
+            setLoading(true)
+
+            const response = await mainRepository.put(
+                `/api/orders/${orderId}/status`,
+                {
+                    status: status,
+                },
+            )
+
+            if (response) {
+                onStatusChange(status)
+                toast.success(
+                    `Đã cập nhật trạng thái đơn hàng thành "${getStatusText(status)}"`,
+                )
+            } else {
+                toast.error('Không thể cập nhật trạng thái đơn hàng')
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error)
+            toast.error('Đã xảy ra lỗi khi cập nhật trạng thái đơn hàng')
+        } finally {
+            setLoading(false)
+        }
     }
-    setShowConfirm(false)
-  }
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-      <h2 className="text-lg font-medium mb-4">Xử lý đơn hàng #{orderId}</h2>
+    const getStatusText = (status: string) => {
+        const statusMap = {
+            pending: 'Chờ xác nhận',
+            processing: 'Đang xử lý',
+            completed: 'Hoàn thành',
+            cancelled: 'Đã hủy',
+        }
+        return statusMap[status as keyof typeof statusMap] || status
+    }
 
-      <div className="flex items-center mb-6">
-        <div className="w-full">
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              <div
-                className={`flex flex-col items-center ${
-                  currentStatus === "pending" || currentStatus === "processing" || currentStatus === "completed"
-                    ? "text-teal-500"
-                    : "text-gray-400"
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    currentStatus === "pending" || currentStatus === "processing" || currentStatus === "completed"
-                      ? "bg-teal-100"
-                      : "bg-gray-100"
-                  }`}
-                >
-                  <CreditCard size={20} />
-                </div>
-                <span className="text-xs mt-1">Đặt hàng</span>
-              </div>
+    const getStatusBadge = (status: string, isActive: boolean) => {
+        const statusConfig = {
+            pending: { className: 'bg-yellow-100 text-yellow-700' },
+            processing: { className: 'bg-blue-100 text-blue-700' },
+            completed: { className: 'bg-green-100 text-green-700' },
+            cancelled: { className: 'bg-red-100 text-red-700' },
+        }
 
-              <div
-                className={`flex flex-col items-center ${
-                  currentStatus === "processing" || currentStatus === "completed" ? "text-teal-500" : "text-gray-400"
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    currentStatus === "processing" || currentStatus === "completed" ? "bg-teal-100" : "bg-gray-100"
-                  }`}
-                >
-                  <Package size={20} />
-                </div>
-                <span className="text-xs mt-1">Xử lý</span>
-              </div>
-
-              <div
-                className={`flex flex-col items-center ${
-                  currentStatus === "completed" ? "text-teal-500" : "text-gray-400"
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    currentStatus === "completed" ? "bg-teal-100" : "bg-gray-100"
-                  }`}
-                >
-                  <Truck size={20} />
-                </div>
-                <span className="text-xs mt-1">Giao hàng</span>
-              </div>
-
-              <div
-                className={`flex flex-col items-center ${
-                  currentStatus === "completed" ? "text-teal-500" : "text-gray-400"
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    currentStatus === "completed" ? "bg-teal-100" : "bg-gray-100"
-                  }`}
-                >
-                  <Check size={20} />
-                </div>
-                <span className="text-xs mt-1">Hoàn thành</span>
-              </div>
-
-              {currentStatus === "cancelled" && (
-                <div className="flex flex-col items-center text-red-500">
-                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                    <X size={20} />
-                  </div>
-                  <span className="text-xs mt-1">Đã hủy</span>
-                </div>
-              )}
-            </div>
-
-            <div className="absolute top-5 left-0 right-0 flex-1 h-1 bg-gray-200 -z-10">
-              <div
-                className={`h-full bg-teal-500 transition-all duration-300 ${
-                  currentStatus === "pending"
-                    ? "w-0"
-                    : currentStatus === "processing"
-                      ? "w-1/3"
-                      : currentStatus === "completed"
-                        ? "w-full"
-                        : "w-0"
-                }`}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {currentStatus === "pending" && (
-          <>
-            <button
-              onClick={() => handleAction("confirm")}
-              className="px-4 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 flex items-center"
+        const config = statusConfig[status as keyof typeof statusConfig]
+        return (
+            <Badge
+                className={`${config.className} ${!isActive ? 'opacity-50' : ''}`}
             >
-              <Check size={16} className="mr-1" /> Xác nhận đơn hàng
-            </button>
-            <button
-              onClick={() => handleAction("cancel")}
-              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 flex items-center"
-            >
-              <X size={16} className="mr-1" /> Hủy đơn hàng
-            </button>
-          </>
-        )}
+                {getStatusText(status)}
+            </Badge>
+        )
+    }
 
-        {currentStatus === "processing" && (
-          <>
-            <button
-              onClick={() => handleAction("ship")}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center"
-            >
-              <Truck size={16} className="mr-1" /> Giao hàng
-            </button>
-            <button
-              onClick={() => handleAction("complete")}
-              className="px-4 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 flex items-center"
-            >
-              <Check size={16} className="mr-1" /> Hoàn thành đơn hàng
-            </button>
-            <button
-              onClick={() => handleAction("cancel")}
-              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 flex items-center"
-            >
-              <X size={16} className="mr-1" /> Hủy đơn hàng
-            </button>
-          </>
-        )}
+    const steps = [
+        {
+            id: 'pending',
+            name: 'Chờ xác nhận',
+            description: 'Đơn hàng đã được tạo',
+        },
+        {
+            id: 'processing',
+            name: 'Đang xử lý',
+            description: 'Đơn hàng đang được chuẩn bị',
+        },
+        {
+            id: 'completed',
+            name: 'Hoàn thành',
+            description: 'Đơn hàng đã giao thành công',
+        },
+    ]
 
-        {currentStatus === "completed" && (
-          <div className="flex items-center text-green-500">
-            <Check size={16} className="mr-1" /> Đơn hàng đã hoàn thành
-          </div>
-        )}
+    const getStepStatus = (stepId: string) => {
+        const statusOrder = ['pending', 'processing', 'completed']
+        const currentIndex = statusOrder.indexOf(currentStatus)
+        const stepIndex = statusOrder.indexOf(stepId)
 
-        {currentStatus === "cancelled" && (
-          <div className="flex items-center text-red-500">
-            <AlertTriangle size={16} className="mr-1" /> Đơn hàng đã bị hủy
-          </div>
-        )}
-      </div>
+        if (currentStatus === 'cancelled') {
+            return 'cancelled'
+        }
 
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-medium mb-4">Xác nhận thao tác</h3>
-            <p className="text-gray-700 mb-4">
-              {actionType === "confirm"
-                ? "Bạn có chắc chắn muốn xác nhận đơn hàng này không?"
-                : actionType === "cancel"
-                  ? "Bạn có chắc chắn muốn hủy đơn hàng này không?"
-                  : actionType === "ship"
-                    ? "Bạn có chắc chắn muốn chuyển đơn hàng này sang trạng thái giao hàng không?"
-                    : "Bạn có chắc chắn muốn hoàn thành đơn hàng này không?"}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button onClick={confirmAction} className="px-4 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600">
-                Xác nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+        if (stepIndex <= currentIndex) {
+            return 'completed'
+        }
+
+        return 'pending'
+    }
+
+    return (
+        <Card className="mb-6">
+            <CardHeader>
+                <CardTitle>Trạng thái đơn hàng</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="relative">
+                    <div className="absolute top-0 left-4 h-full w-0.5 bg-gray-200"></div>
+
+                    <div className="space-y-6">
+                        {steps.map((step, index) => {
+                            const stepStatus = getStepStatus(step.id)
+                            const isActive = stepStatus === 'completed'
+                            const isCurrentStep = currentStatus === step.id
+                            const canUpdate =
+                                !loading &&
+                                currentStatus !== 'cancelled' &&
+                                step.id !== currentStatus
+
+                            return (
+                                <div key={step.id} className="relative">
+                                    <div
+                                        className={`absolute top-0 left-4 mt-1.5 -ml-2 h-4 w-4 rounded-full border-2 ${
+                                            isActive
+                                                ? 'border-teal-500 bg-teal-500'
+                                                : 'border-gray-300 bg-white'
+                                        }`}
+                                    ></div>
+
+                                    <div className="ml-10">
+                                        <div className="flex items-center space-x-3">
+                                            <h3
+                                                className={`text-base font-semibold ${isActive ? 'text-teal-600' : 'text-gray-500'}`}
+                                            >
+                                                {step.name}
+                                            </h3>
+                                            {isCurrentStep && (
+                                                <Badge className="bg-blue-100 text-blue-700">
+                                                    Hiện tại
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            {step.description}
+                                        </p>
+
+                                        {canUpdate && (
+                                            <Button
+                                                onClick={() =>
+                                                    updateOrderStatus(
+                                                        step.id as any,
+                                                    )
+                                                }
+                                                disabled={loading}
+                                                variant="outline"
+                                                size="sm"
+                                                className="mt-2"
+                                            >
+                                                {loading
+                                                    ? 'Đang cập nhật...'
+                                                    : `Chuyển sang ${step.name}`}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
+
+                        {/* Cancelled status */}
+                        <div className="relative">
+                            <div
+                                className={`absolute top-0 left-4 mt-1.5 -ml-2 h-4 w-4 rounded-full border-2 ${
+                                    currentStatus === 'cancelled'
+                                        ? 'border-red-500 bg-red-500'
+                                        : 'border-gray-300 bg-white'
+                                }`}
+                            ></div>
+
+                            <div className="ml-10">
+                                <div className="flex items-center space-x-3">
+                                    <h3
+                                        className={`text-base font-semibold ${
+                                            currentStatus === 'cancelled'
+                                                ? 'text-red-600'
+                                                : 'text-gray-500'
+                                        }`}
+                                    >
+                                        Đã hủy
+                                    </h3>
+                                    {currentStatus === 'cancelled' && (
+                                        <Badge className="bg-red-100 text-red-700">
+                                            Hiện tại
+                                        </Badge>
+                                    )}
+                                </div>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Đơn hàng đã bị hủy
+                                </p>
+
+                                {currentStatus !== 'cancelled' &&
+                                    currentStatus !== 'completed' && (
+                                        <Button
+                                            onClick={() =>
+                                                updateOrderStatus('cancelled')
+                                            }
+                                            disabled={loading}
+                                            variant="destructive"
+                                            size="sm"
+                                            className="mt-2"
+                                        >
+                                            {loading
+                                                ? 'Đang cập nhật...'
+                                                : 'Hủy đơn hàng'}
+                                        </Button>
+                                    )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
 }

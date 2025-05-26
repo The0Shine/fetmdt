@@ -6,7 +6,7 @@ export interface IProduct {
     oldPrice?: number
     category: string
     subcategory?: string
-    stock: number
+    quantity: number
     status: 'in-stock' | 'out-of-stock'
     image?: string
     images?: string[]

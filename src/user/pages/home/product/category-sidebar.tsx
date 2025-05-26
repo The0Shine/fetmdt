@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useState } from 'react'
 import {
     ChevronDown,
     ChevronRight,
@@ -104,7 +104,7 @@ export default function CategorySidebar({
                             expandedCategories.includes(category.id) && (
                                 <ul className="mt-1 ml-6 space-y-1">
                                     {category.subcategories.map(
-                                        (subcategory) => (
+                                        (subcategory: { id: Key | null | undefined; slug: any; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined }) => (
                                             <li key={subcategory.id}>
                                                 <Link
                                                     to={`/shop/category/${subcategory.slug}`}

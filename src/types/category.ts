@@ -1,3 +1,9 @@
+export interface Subcategory {
+    id: string
+    name: string
+    slug: string
+}
+
 export interface Category {
     _id?: string
     id?: string
@@ -10,6 +16,7 @@ export interface Category {
     updatedAt?: string
     color?: string // Trường bổ sung cho UI
     productCount?: number // Trường bổ sung cho UI
+    subcategories?: Subcategory[] // Thêm trường subcategories
 }
 
 export interface CategoryResponse {

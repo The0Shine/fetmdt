@@ -8,7 +8,6 @@ import { Login, SignUp } from './admin/pages' // hoặc bạn tách auth riêng
 
 import PrivateRoute from './components/PrivateRoute'
 import ShopLayout from './user/layouts/ShopLayout'
-import { Account } from './admin/layouts/components/Account'
 import CategoryPage from './user/pages/category/category-page'
 import CheckoutSuccess from './user/pages/checkout/checkout-success'
 import CartPage from './user/pages/cart/cart-page'
@@ -20,6 +19,7 @@ import ShopPage from './user/pages/shop'
 import ShopHomePage from './user/pages/home/page'
 import OrderDetail from './admin/pages/orders/order-detail'
 import ProductEdit from './admin/pages/products/components/product-edit'
+import AccountPage from './user/pages/account/account-page'
 const App = () => (
     <Routes>
         {/* Admin routes */}
@@ -40,7 +40,7 @@ const App = () => (
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
             <Route path="checkout/success" element={<CheckoutSuccess />} />
-            <Route path="account" element={<Account />} />
+            <Route path="account" element={<AccountPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="account/orders" element={<UserOrders />} />
         </Route>
