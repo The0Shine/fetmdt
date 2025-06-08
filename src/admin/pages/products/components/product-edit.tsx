@@ -10,14 +10,15 @@ import {
     updateProduct,
     deleteProduct,
 } from '../../../../services/apiProduct.service'
-import { Product } from '../../../../types/product'
+import type { Product } from '../../../../types/product'
 import ProductForm from './product-form'
+import type { ICategory } from '@/types/category'
 
 export default function ProductEdit() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const [product, setProduct] = useState<Product | null>(null)
-    const [categories, setCategories] = useState<string[]>([])
+    const [categories, setCategories] = useState<ICategory[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -31,25 +32,35 @@ export default function ProductEdit() {
                 // Tải thông tin sản phẩm
                 if (id) {
                     const productResponse = await getProductById(id)
-                    // Đảm bảo stock luôn là 0
-                    setProduct({
-                        ...productResponse.data,
-                        // Đảm bảo các trường boolean được xử lý đúng
-                        featured: productResponse.data.featured || false,
-                        recommended: productResponse.data.recommended || false,
-                        hot: productResponse.data.hot || false,
-                        new: productResponse.data.new || false,
-                        // Đảm bảo mảng hình ảnh
-                        images: productResponse.data.images || [],
-                    })
+
+                    if (productResponse) {
+                        setProduct({
+                            ...productResponse.data,
+                            // Đảm bảo các trường boolean được xử lý đúng
+                            featured: productResponse.data.featured || false,
+                            recommended:
+                                productResponse.data.recommended || false,
+                            hot: productResponse.data.hot || false,
+                            new: productResponse.data.new || false,
+                            published: productResponse.data.published !== false, // Mặc định là true nếu không có
+                            // Đảm bảo mảng hình ảnh
+                            images: productResponse.data.images || [],
+                        })
+                    } else {
+                        setProduct(null)
+                        setError('Không tìm thấy sản phẩm với ID này.')
+                        navigate('/admin/products')
+                    }
                 }
 
                 // Tải danh sách danh mục
                 const categoriesResponse = await getCategories()
-                const categoryNames = categoriesResponse.data.map(
-                    (category) => category.name,
-                )
-                setCategories(categoryNames)
+                if (categoriesResponse) {
+                    setCategories(categoriesResponse.data)
+                } else {
+                    setCategories([])
+                    setError('Không thể tải danh mục sản phẩm.')
+                }
             } catch (err) {
                 setError(
                     'Không thể tải thông tin sản phẩm. Vui lòng thử lại sau.',
@@ -61,7 +72,7 @@ export default function ProductEdit() {
         }
 
         loadData()
-    }, [id])
+    }, [id, navigate])
 
     const handleChange = (
         e: React.ChangeEvent<
@@ -110,7 +121,7 @@ export default function ProductEdit() {
         setError(null)
         try {
             // Đảm bảo stock luôn là 0 khi lưu
-            await updateProduct(id, { ...product, quantity: 0 })
+            await updateProduct(id, { ...product })
             navigate('/admin/products')
         } catch (err) {
             setError('Không thể cập nhật sản phẩm. Vui lòng thử lại sau.')
@@ -122,7 +133,7 @@ export default function ProductEdit() {
 
     const handleDelete = async () => {
         if (!id) return
-        if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?')) {
+        if (window.confirm('Bạn có chắc ch���n muốn xóa sản phẩm này không?')) {
             try {
                 await deleteProduct(id)
                 navigate('/admin/products')

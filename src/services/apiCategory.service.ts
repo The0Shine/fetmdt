@@ -1,64 +1,83 @@
 import type {
     CategoriesResponse,
-    Category,
     CategoryResponse,
-} from '../types/category'
+    ICategory,
+} from '@/types/category'
 import { mainRepository } from '../utils/Repository'
 
-// Lấy danh sách danh mục
-export const getCategories = async (): Promise<CategoriesResponse> => {
-    const response =
-        await mainRepository.get<CategoriesResponse>('/api/categories')
-    if (!response) {
-        throw new Error('Failed to fetch categories')
-    }
-    return response
+interface CategoryQueryParams {
+    page?: number
+    limit?: number
+    search?: string
+    parent?: string | null
+    sort?: string
+}
+
+// Lấy danh sách danh mục với các tùy chọn lọc và phân trang
+export const getCategories = async (params: CategoryQueryParams = {}) => {
+    const queryParams = new URLSearchParams()
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            // Xử lý đặc biệt cho parent parameter
+            if (key === 'parent' && value === 'null') {
+                // Không thêm parent vào query nếu giá trị là 'null'
+                return
+            }
+            queryParams.append(key, String(value))
+        }
+    })
+
+    const queryString = queryParams.toString()
+    const url = queryString
+        ? `/api/categories?${queryString}`
+        : '/api/categories'
+
+    return await mainRepository.get<CategoriesResponse>(url)
+}
+
+// Lấy danh mục cha (không có parent) - sửa lại để không gửi parent=null
+export const getParentCategories = async () => {
+    // Không gửi parent=null, thay vào đó backend sẽ tự động lọc những category không có parent
+    return await mainRepository.get<CategoriesResponse>(
+        '/api/categories?parentOnly=true',
+    )
+}
+
+// Lấy danh mục con theo parent ID
+export const getSubcategories = async (parentId: string) => {
+    return await mainRepository.get<CategoriesResponse>(
+        `/api/categories?parent=${parentId}`,
+    )
 }
 
 // Lấy danh mục theo ID
-export const getCategoryById = async (
-    id: string,
-): Promise<CategoryResponse> => {
-    const response = await mainRepository.get<CategoryResponse>(
-        `/api/categories/${id}`,
-    )
-    if (!response) {
-        throw new Error(`Category with ID ${id} not found`)
-    }
-    return response
+export const getCategoryById = async (id: string) => {
+    return await mainRepository.get<CategoryResponse>(`/api/categories/${id}`)
 }
 
 // Tạo danh mục mới
-export const createCategory = async (
-    category: Partial<Category>,
-): Promise<CategoryResponse> => {
-    const response = await mainRepository.post<CategoryResponse>(
+export const createCategory = async (category: Partial<ICategory>) => {
+    return await mainRepository.post<CategoryResponse>(
         '/api/categories',
         category,
     )
-    if (!response) {
-        throw new Error('Failed to create category')
-    }
-    return response
 }
 
 // Cập nhật danh mục
 export const updateCategory = async (
     id: string,
-    category: Partial<Category>,
+    category: Partial<ICategory>,
 ) => {
-    const response = await mainRepository.put<CategoryResponse>(
+    return await mainRepository.put<CategoryResponse>(
         `/api/categories/${id}`,
         category,
     )
-
-    return response
 }
 
 // Xóa danh mục
 export const deleteCategory = async (id: string) => {
-    const response = await mainRepository.delete<{ success: boolean }>(
+    return await mainRepository.delete<{ success: boolean }>(
         `/api/categories/${id}`,
     )
-    return response
 }

@@ -8,6 +8,7 @@ import type {
     StockHistoryResponse,
 } from '@/admin/interfaces/stock.interface'
 import { mainRepository } from '@/utils/Repository'
+import { status } from 'nprogress'
 
 // Interfaces
 interface Pagination {
@@ -60,6 +61,7 @@ export const convertVoucherToBackendModel = (
     })),
     notes: voucher.notes,
     relatedOrder: voucher.relatedOrder,
+    status: voucher.status || 'pending',
 })
 
 // API Functions

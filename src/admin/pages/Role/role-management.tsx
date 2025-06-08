@@ -87,6 +87,8 @@ export default function RoleManagement() {
             if (search) params.search = search
 
             const response = await apiRoleService.getRoles(params)
+            console.log(response)
+
             setRoles(response.data as ExtendedRoleResponse[])
             setTotalRows(response.meta.total)
         } catch (error) {

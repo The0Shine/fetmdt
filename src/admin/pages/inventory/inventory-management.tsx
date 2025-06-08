@@ -195,10 +195,11 @@ export default function InventoryManagement() {
             }
 
             const response = await getProducts(params)
-
-            setProducts(response.data)
-            setTotalRows(response.total)
-            setTotalPages(response.pagination.totalPages)
+            if (response) {
+                setProducts(response.data)
+                setTotalRows(response.total)
+                setTotalPages(response.pagination.totalPages)
+            }
         } catch (err) {
             setError(
                 err instanceof Error
@@ -954,7 +955,7 @@ export default function InventoryManagement() {
                                                         {typeof voucher.createdBy ===
                                                         'object'
                                                             ? voucher.createdBy
-                                                                  .name
+                                                                  .lastName
                                                             : 'Admin'}
                                                     </TableCell>
                                                     <TableCell>

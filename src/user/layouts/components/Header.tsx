@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react'
+import { useState, useContext, use, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
     ShoppingCart,
@@ -32,7 +32,9 @@ export default function ShopHeader() {
     const isActive = (path: string) => {
         return pathname === path || pathname.startsWith(`${path}/`)
     }
-
+    useEffect(() => {
+        console.log(isAuthenticated)
+    }, [])
     return (
         <header className="sticky top-0 z-10 bg-white shadow-sm">
             <div className="container mx-auto px-4">
@@ -119,11 +121,11 @@ export default function ShopHeader() {
                             <div className="group relative">
                                 <Link
                                     to="/account"
-                                    className="flex items-center text-gray-600 hover:text-blue-600"
+                                    className="flex items-center p-2 text-gray-600 hover:text-blue-600"
                                 >
                                     <User size={20} />
                                 </Link>
-                                <div className="absolute right-0 z-10 mt-2 hidden w-48 rounded-md bg-white shadow-lg group-hover:block">
+                                <div className="absolute right-0 z-10 hidden w-48 rounded-md bg-white pt-2 shadow-lg group-hover:block">
                                     <div className="py-1">
                                         <Link
                                             to="/account"

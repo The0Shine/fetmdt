@@ -103,7 +103,7 @@ export default function StockVoucherDetailModal({ isOpen, onClose, voucher }: St
                   <div>
                     <p className="text-sm text-gray-500">Người tạo</p>
                     <p className="font-medium text-gray-900">
-                      {typeof voucher.createdBy === "object" ? voucher.createdBy.name : "Admin"}
+                      {typeof voucher.createdBy === "object" ? voucher.createdBy.lastName : "Admin"}
                     </p>
                   </div>
                 </div>

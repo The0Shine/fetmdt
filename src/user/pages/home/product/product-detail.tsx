@@ -63,7 +63,7 @@ const ProductDetail: React.FC<{ productId: string }> = ({ productId }) => {
                                 // Filter out the current product from recommendations
                                 const filteredProducts =
                                     recommendedResponse.data.filter(
-                                        (p) => p._id !== id && p.id !== id,
+                                        (p) => p._id !== id,
                                     )
                                 setRecommendedProducts(filteredProducts)
                             }
@@ -625,11 +625,11 @@ const ProductDetail: React.FC<{ productId: string }> = ({ productId }) => {
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {recommendedProducts.map((product) => (
                             <div
-                                key={product._id || product.id}
+                                key={product._id}
                                 className="overflow-hidden rounded-lg bg-white shadow-sm"
                             >
                                 <Link
-                                    to={`/shop/product/${product._id || product.id}`}
+                                    to={`/shop/product/${product._id}`}
                                     className="relative block h-48"
                                 >
                                     <img
@@ -656,7 +656,7 @@ const ProductDetail: React.FC<{ productId: string }> = ({ productId }) => {
                                 </Link>
                                 <div className="p-4">
                                     <Link
-                                        to={`/shop/product/${product._id || product.id}`}
+                                        to={`/shop/product/${product._id}`}
                                         className="block"
                                     >
                                         <h3 className="line-clamp-2 h-14 text-lg font-medium text-gray-800">

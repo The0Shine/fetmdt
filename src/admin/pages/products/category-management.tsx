@@ -1,7 +1,6 @@
 'use client'
 
 import type React from 'react'
-
 import { useState, useEffect } from 'react'
 import {
     Search,
@@ -12,30 +11,31 @@ import {
     AlertCircle,
     ChevronDown,
     ChevronUp,
-    PlusCircle,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
     getCategories,
+    getSubcategories,
     deleteCategory,
     updateCategory,
     createCategory,
 } from '../../../services/apiCategory.service'
-import type { Category, Subcategory } from '../../../types/category'
+import type { ICategory } from '../../../types/category'
 
 interface CategoryModalProps {
     isOpen: boolean
     onClose: () => void
-    category: Category | null
-    onSave: (category: Category) => void
-    allCategories: Category[]
+    category: ICategory | null
+    onSave: (category: ICategory) => void
+    parentCategories: ICategory[]
 }
 
 export default function CategoryManagement() {
-    const [categories, setCategories] = useState<Category[]>([])
+    const [categories, setCategories] = useState<ICategory[]>([])
+    const [parentCategories, setParentCategories] = useState<ICategory[]>([])
     const [searchTerm, setSearchTerm] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [editingCategory, setEditingCategory] = useState<Category | null>(
+    const [editingCategory, setEditingCategory] = useState<ICategory | null>(
         null,
     )
     const [loading, setLoading] = useState(false)
@@ -43,21 +43,48 @@ export default function CategoryManagement() {
     const [expandedCategories, setExpandedCategories] = useState<
         Record<string, boolean>
     >({})
+    const [subcategoriesMap, setSubcategoriesMap] = useState<
+        Record<string, ICategory[]>
+    >({})
+    const [currentPage, setCurrentPage] = useState(1)
 
     // Tải danh sách danh mục
     const loadCategories = async () => {
         setLoading(true)
         setError(null)
         try {
-            const response = await getCategories()
-            // Thêm trường color và productCount cho UI nếu không có
-            const categoriesWithUI = response.data.map((category) => ({
-                ...category,
-                color: category.color || getRandomColor(),
-                productCount: category.productCount || 0,
-                subcategories: category.subcategories || [],
-            }))
-            setCategories(categoriesWithUI)
+            // Tải tất cả danh mục với phân trang
+            const allCategoriesResponse = await getCategories({
+                page: currentPage,
+                search: searchTerm || undefined,
+                sort: 'name,asc',
+            })
+
+            // Tải danh mục cha - sử dụng parent: null để lấy danh mục gốc
+            const parentCategoriesResponse = await getCategories({
+                parent: null,
+            })
+
+            if (allCategoriesResponse && parentCategoriesResponse) {
+                setCategories(allCategoriesResponse.data)
+                // Lọc danh mục cha từ response (những category không có parent)
+                const parentCats = parentCategoriesResponse.data.filter(
+                    (cat) => !cat.parent,
+                )
+                setParentCategories(parentCats)
+
+                // Load subcategories for each parent category
+                const subcatMap: Record<string, ICategory[]> = {}
+                for (const parent of parentCats) {
+                    const subcatsResponse = await getSubcategories(parent._id)
+                    if (subcatsResponse) {
+                        subcatMap[parent._id] = subcatsResponse.data
+                    }
+                }
+                setSubcategoriesMap(subcatMap)
+            } else {
+                setError('Không có danh mục nào được tìm thấy.')
+            }
         } catch (err) {
             setError('Không thể tải danh sách danh mục. Vui lòng thử lại sau.')
             console.error('Error loading categories:', err)
@@ -66,27 +93,39 @@ export default function CategoryManagement() {
         }
     }
 
-    // Tải dữ liệu khi component mount
+    // Tải dữ liệu khi component mount hoặc khi trang thay đổi
     useEffect(() => {
         loadCategories()
-    }, [])
+    }, [currentPage, searchTerm])
 
     // Xử lý tìm kiếm
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value)
+        setCurrentPage(1) // Reset về trang 1 khi tìm kiếm
+    }
+
+    // Xử lý tìm kiếm khi nhấn Enter
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            loadCategories()
+        }
     }
 
     // Lọc danh mục theo từ khóa tìm kiếm
-    const filteredCategories = categories.filter(
-        (category) =>
-            category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            category.description
-                ?.toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-            category.subcategories?.some((sub) =>
-                sub.name.toLowerCase().includes(searchTerm.toLowerCase()),
-            ),
-    )
+    const filteredParentCategories = parentCategories.filter((category) => {
+        if (!searchTerm) return true
+
+        const matchesName = category.name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
+        const matchesDescription = category.description
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase())
+        const matchesSubcategory = subcategoriesMap[category._id]?.some((sub) =>
+            sub.name.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+        return matchesName || matchesDescription || matchesSubcategory
+    })
 
     // Mở modal thêm danh mục mới
     const handleAddCategory = () => {
@@ -95,7 +134,7 @@ export default function CategoryManagement() {
     }
 
     // Mở modal chỉnh sửa danh mục
-    const handleEditCategory = (category: Category) => {
+    const handleEditCategory = (category: ICategory) => {
         setEditingCategory(category)
         setIsModalOpen(true)
     }
@@ -106,14 +145,20 @@ export default function CategoryManagement() {
             try {
                 await deleteCategory(id)
                 loadCategories() // Tải lại danh sách danh mục
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Error deleting category:', err)
+                // Hiển thị lỗi từ API nếu có
+                if (err.response?.data?.error) {
+                    setError(err.response.data.error)
+                } else {
+                    setError('Không thể xóa danh mục. Vui lòng thử lại.')
+                }
             }
         }
     }
 
     // Xử lý lưu danh mục (thêm mới hoặc cập nhật)
-    const handleSaveCategory = async (category: Category) => {
+    const handleSaveCategory = async (category: ICategory) => {
         try {
             if (category._id) {
                 // Cập nhật danh mục hiện có
@@ -124,8 +169,14 @@ export default function CategoryManagement() {
             }
             setIsModalOpen(false)
             loadCategories() // Tải lại danh sách danh mục
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error saving category:', err)
+            // Hiển thị lỗi từ API nếu có
+            if (err.response?.data?.error) {
+                setError(err.response.data.error)
+            } else {
+                setError('Không thể lưu danh mục. Vui lòng thử lại.')
+            }
         }
     }
 
@@ -158,6 +209,11 @@ export default function CategoryManagement() {
         }))
     }
 
+    // Xử lý chuyển trang
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+    }
+
     return (
         <div className="p-6">
             <div className="mb-6">
@@ -188,6 +244,7 @@ export default function CategoryManagement() {
                             className="w-full rounded-md border border-gray-300 py-2 pr-4 pl-10 focus:border-transparent focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={searchTerm}
                             onChange={handleSearch}
+                            onKeyDown={handleSearchKeyDown}
                         />
                     </div>
                     <button
@@ -214,78 +271,80 @@ export default function CategoryManagement() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredCategories.length === 0 ? (
+                        {filteredParentCategories.length === 0 ? (
                             <div className="col-span-full py-8 text-center text-gray-500">
                                 Không tìm thấy danh mục nào
                             </div>
                         ) : (
-                            filteredCategories.map((category) => (
-                                <div
-                                    key={category._id}
-                                    className={`${category.color} relative overflow-hidden rounded-lg border border-gray-200 p-4`}
-                                >
-                                    <div className="mb-2 flex items-start justify-between">
-                                        <div className="flex items-center">
-                                            <span className="mr-2 text-2xl">
-                                                {category.icon || '📁'}
-                                            </span>
-                                            <div>
-                                                <h3 className="text-lg font-medium">
-                                                    {category.name}
-                                                </h3>
-                                                <p className="text-sm text-gray-600">
-                                                    {category.description}
-                                                </p>
+                            filteredParentCategories.map((category) => {
+                                const subcategories =
+                                    subcategoriesMap[category._id] || []
+                                const isExpanded =
+                                    expandedCategories[category._id]
+
+                                return (
+                                    <div
+                                        key={category._id}
+                                        className={`${getRandomColor()} relative overflow-hidden rounded-lg border border-gray-200 p-4`}
+                                    >
+                                        <div className="mb-2 flex items-start justify-between">
+                                            <div className="flex items-center">
+                                                <span className="mr-2 text-2xl">
+                                                    {category.icon || '📁'}
+                                                </span>
+                                                <div>
+                                                    <h3 className="text-lg font-medium">
+                                                        {category.name}
+                                                    </h3>
+                                                    <p className="text-sm text-gray-600">
+                                                        {category.description}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex space-x-1">
-                                            <button
-                                                className="rounded-full p-1 hover:bg-white"
-                                                onClick={() =>
-                                                    handleEditCategory(category)
-                                                }
-                                                title="Chỉnh sửa"
-                                            >
-                                                <Edit
-                                                    size={16}
-                                                    className="text-gray-600"
-                                                />
-                                            </button>
-                                            <button
-                                                className="rounded-full p-1 hover:bg-white"
-                                                onClick={() =>
-                                                    handleDeleteCategory(
-                                                        category._id as string,
-                                                    )
-                                                }
-                                                title="Xóa"
-                                            >
-                                                <Trash2
-                                                    size={16}
-                                                    className="text-gray-600"
-                                                />
-                                            </button>
-                                            {category.subcategories &&
-                                                category.subcategories.length >
-                                                    0 && (
+                                            <div className="flex space-x-1">
+                                                <button
+                                                    className="rounded-full p-1 hover:bg-white"
+                                                    onClick={() =>
+                                                        handleEditCategory(
+                                                            category,
+                                                        )
+                                                    }
+                                                    title="Chỉnh sửa"
+                                                >
+                                                    <Edit
+                                                        size={16}
+                                                        className="text-gray-600"
+                                                    />
+                                                </button>
+                                                <button
+                                                    className="rounded-full p-1 hover:bg-white"
+                                                    onClick={() =>
+                                                        handleDeleteCategory(
+                                                            category._id,
+                                                        )
+                                                    }
+                                                    title="Xóa"
+                                                >
+                                                    <Trash2
+                                                        size={16}
+                                                        className="text-gray-600"
+                                                    />
+                                                </button>
+                                                {subcategories.length > 0 && (
                                                     <button
                                                         className="rounded-full p-1 hover:bg-white"
                                                         onClick={() =>
                                                             toggleCategoryExpand(
-                                                                category._id as string,
+                                                                category._id,
                                                             )
                                                         }
                                                         title={
-                                                            expandedCategories[
-                                                                category._id as string
-                                                            ]
+                                                            isExpanded
                                                                 ? 'Thu gọn'
                                                                 : 'Mở rộng'
                                                         }
                                                     >
-                                                        {expandedCategories[
-                                                            category._id as string
-                                                        ] ? (
+                                                        {isExpanded ? (
                                                             <ChevronUp
                                                                 size={16}
                                                                 className="text-gray-600"
@@ -298,66 +357,100 @@ export default function CategoryManagement() {
                                                         )}
                                                     </button>
                                                 )}
-                                        </div>
-                                    </div>
-                                    <div className="mt-2 text-sm text-gray-600">
-                                        <span className="font-medium">
-                                            {category.productCount}
-                                        </span>{' '}
-                                        sản phẩm
-                                        {category.subcategories && (
-                                            <span className="ml-2">
-                                                •{' '}
-                                                {category.subcategories.length}{' '}
-                                                danh mục con
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Danh sách danh mục con */}
-                                    {expandedCategories[
-                                        category._id as string
-                                    ] &&
-                                        category.subcategories &&
-                                        category.subcategories.length > 0 && (
-                                            <div className="mt-3 border-t border-gray-200 pt-3">
-                                                <h4 className="mb-2 text-sm font-medium text-gray-700">
-                                                    Danh mục con:
-                                                </h4>
-                                                <div className="space-y-2">
-                                                    {category.subcategories.map(
-                                                        (subcategory) => (
-                                                            <div
-                                                                key={
-                                                                    subcategory.id
-                                                                }
-                                                                className="flex items-center justify-between rounded-md bg-white/50 p-2"
-                                                            >
-                                                                <div>
-                                                                    <span className="text-sm font-medium">
-                                                                        {
-                                                                            subcategory.name
-                                                                        }
-                                                                    </span>
-                                                                    <span className="ml-2 text-xs text-gray-500">
-                                                                        (
-                                                                        {
-                                                                            subcategory.slug
-                                                                        }
-                                                                        )
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        ),
-                                                    )}
-                                                </div>
                                             </div>
-                                        )}
-                                </div>
-                            ))
+                                        </div>
+                                        <div className="mt-2 text-sm text-gray-600">
+                                            <span className="font-medium">
+                                                {subcategories.length}
+                                            </span>{' '}
+                                            danh mục con
+                                        </div>
+
+                                        {/* Danh sách danh mục con */}
+                                        {isExpanded &&
+                                            subcategories.length > 0 && (
+                                                <div className="mt-3 border-t border-gray-200 pt-3">
+                                                    <h4 className="mb-2 text-sm font-medium text-gray-700">
+                                                        Danh mục con:
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {subcategories.map(
+                                                            (subcategory) => (
+                                                                <div
+                                                                    key={
+                                                                        subcategory._id
+                                                                    }
+                                                                    className="flex items-center justify-between rounded-md bg-white/50 p-2"
+                                                                >
+                                                                    <div className="flex items-center">
+                                                                        <span className="mr-2 text-sm">
+                                                                            {subcategory.icon ||
+                                                                                '📄'}
+                                                                        </span>
+                                                                        <div>
+                                                                            <span className="text-sm font-medium">
+                                                                                {
+                                                                                    subcategory.name
+                                                                                }
+                                                                            </span>
+                                                                            <span className="ml-2 text-xs text-gray-500">
+                                                                                (
+                                                                                {
+                                                                                    subcategory.slug
+                                                                                }
+
+                                                                                )
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex space-x-1">
+                                                                        <button
+                                                                            className="rounded-full p-1 hover:bg-white"
+                                                                            onClick={() =>
+                                                                                handleEditCategory(
+                                                                                    subcategory,
+                                                                                )
+                                                                            }
+                                                                            title="Chỉnh sửa"
+                                                                        >
+                                                                            <Edit
+                                                                                size={
+                                                                                    12
+                                                                                }
+                                                                                className="text-gray-600"
+                                                                            />
+                                                                        </button>
+                                                                        <button
+                                                                            className="rounded-full p-1 hover:bg-white"
+                                                                            onClick={() =>
+                                                                                handleDeleteCategory(
+                                                                                    subcategory._id,
+                                                                                )
+                                                                            }
+                                                                            title="Xóa"
+                                                                        >
+                                                                            <Trash2
+                                                                                size={
+                                                                                    12
+                                                                                }
+                                                                                className="text-gray-600"
+                                                                            />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                    </div>
+                                )
+                            })
                         )}
                     </div>
                 )}
+
+                {/* Phân trang */}
             </div>
 
             {isModalOpen && (
@@ -366,7 +459,7 @@ export default function CategoryManagement() {
                     onClose={() => setIsModalOpen(false)}
                     category={editingCategory}
                     onSave={handleSaveCategory}
-                    allCategories={categories}
+                    parentCategories={parentCategories}
                 />
             )}
         </div>
@@ -378,28 +471,34 @@ function CategoryModal({
     onClose,
     category,
     onSave,
-    allCategories,
+    parentCategories,
 }: CategoryModalProps) {
-    const [formData, setFormData] = useState<Partial<Category>>(
+    const [formData, setFormData] = useState<Partial<ICategory>>(
         category || {
             name: '',
             slug: '',
             description: '',
-            color: 'bg-blue-100',
             icon: '📁',
-            subcategories: [],
+            parent: undefined,
         },
     )
+    const [formError, setFormError] = useState<string | null>(null)
 
-    const [subcategories, setSubcategories] = useState<Subcategory[]>(
-        category?.subcategories || [],
-    )
-
-    const [newSubcategory, setNewSubcategory] = useState<Partial<Subcategory>>({
-        id: '',
-        name: '',
-        slug: '',
-    })
+    // Reset form khi category thay đổi
+    useEffect(() => {
+        if (category) {
+            setFormData(category)
+        } else {
+            setFormData({
+                name: '',
+                slug: '',
+                description: '',
+                icon: '📁',
+                parent: undefined,
+            })
+        }
+        setFormError(null)
+    }, [category])
 
     const handleChange = (
         e: React.ChangeEvent<
@@ -407,84 +506,28 @@ function CategoryModal({
         >,
     ) => {
         const { name, value } = e.target
-        setFormData({ ...formData, [name]: value })
-    }
-
-    const handleSubcategoryChange = (
-        e: React.ChangeEvent<HTMLInputElement>,
-        index: number,
-    ) => {
-        const { name, value } = e.target
-        const updatedSubcategories = [...subcategories]
-        updatedSubcategories[index] = {
-            ...updatedSubcategories[index],
-            [name]: value,
-        }
-        setSubcategories(updatedSubcategories)
-    }
-
-    const handleNewSubcategoryChange = (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        const { name, value } = e.target
-        setNewSubcategory({
-            ...newSubcategory,
-            [name]: value,
+        setFormData({
+            ...formData,
+            [name]: name === 'parent' && value === '' ? undefined : value,
         })
-    }
-
-    const addSubcategory = () => {
-        if (!newSubcategory.name) return
-
-        // Tạo slug từ tên nếu không có
-        const slug =
-            newSubcategory.slug ||
-            newSubcategory.name?.toLowerCase().replace(/\s+/g, '-') ||
-            ''
-        const id = newSubcategory.id || slug
-
-        const newSub: Subcategory = {
-            id,
-            name: newSubcategory.name,
-            slug,
-        }
-
-        setSubcategories([...subcategories, newSub])
-        setNewSubcategory({ id: '', name: '', slug: '' })
-    }
-
-    const removeSubcategory = (index: number) => {
-        const updatedSubcategories = [...subcategories]
-        updatedSubcategories.splice(index, 1)
-        setSubcategories(updatedSubcategories)
     }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Validation
+        if (!formData.name) {
+            setFormError('Tên danh mục không được để trống')
+            return
+        }
+
         // Tạo slug từ tên nếu không có
         const slug =
             formData.slug ||
             formData.name?.toLowerCase().replace(/\s+/g, '-') ||
             ''
-        onSave({ ...(formData as Category), slug, subcategories })
+        onSave({ ...(formData as ICategory), slug })
     }
-
-    const colorOptions = [
-        { value: 'bg-blue-100', label: 'Xanh dương' },
-        { value: 'bg-green-100', label: 'Xanh lá' },
-        { value: 'bg-red-100', label: 'Đỏ' },
-        { value: 'bg-yellow-100', label: 'Vàng' },
-        { value: 'bg-purple-100', label: 'Tím' },
-        { value: 'bg-pink-100', label: 'Hồng' },
-        { value: 'bg-indigo-100', label: 'Chàm' },
-        { value: 'bg-teal-100', label: 'Xanh ngọc' },
-        { value: 'bg-orange-100', label: 'Cam' },
-        { value: 'bg-amber-100', label: 'Hổ phách' },
-        { value: 'bg-lime-100', label: 'Chanh' },
-        { value: 'bg-emerald-100', label: 'Ngọc lục bảo' },
-        { value: 'bg-cyan-100', label: 'Xanh lơ' },
-        { value: 'bg-gray-100', label: 'Xám' },
-    ]
 
     if (!isOpen) return null
 
@@ -505,6 +548,12 @@ function CategoryModal({
 
                 <form onSubmit={handleSubmit}>
                     <div className="space-y-4 p-6">
+                        {formError && (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                                {formError}
+                            </div>
+                        )}
+
                         <div>
                             <label
                                 htmlFor="name"
@@ -541,6 +590,28 @@ function CategoryModal({
                                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                 placeholder="Tự động tạo từ tên nếu để trống"
                             />
+                            <p className="mt-1 text-xs text-gray-500">
+                                Slug sẽ được sử dụng trong URL. Nếu để trống, hệ
+                                thống sẽ tự động tạo từ tên.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="description"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Mô tả
+                            </label>
+                            <textarea
+                                id="description"
+                                name="description"
+                                value={formData.description || ''}
+                                onChange={handleChange}
+                                rows={3}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                placeholder="Nhập mô tả danh mục"
+                            />
                         </div>
 
                         <div>
@@ -559,119 +630,45 @@ function CategoryModal({
                                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                 placeholder="Emoji hoặc tên icon"
                             />
+                            <p className="mt-1 text-xs text-gray-500">
+                                Bạn có thể sử dụng emoji (📁, 📱, 💻, ...) hoặc
+                                tên icon.
+                            </p>
                         </div>
 
-                        {/* Phần danh mục con */}
-                        <div className="mt-6">
-                            <div className="mb-2 flex items-center justify-between">
-                                <h3 className="text-md font-medium text-gray-700">
-                                    Danh mục con
-                                </h3>
-                            </div>
-
-                            {/* Danh sách danh mục con hiện tại */}
-                            {subcategories.length > 0 && (
-                                <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3">
-                                    <div className="space-y-3">
-                                        {subcategories.map(
-                                            (subcategory, index) => (
-                                                <div
-                                                    key={index}
-                                                    className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm"
-                                                >
-                                                    <div className="flex-1 space-y-1">
-                                                        <div className="flex items-center space-x-2">
-                                                            <input
-                                                                type="text"
-                                                                name="name"
-                                                                value={
-                                                                    subcategory.name
-                                                                }
-                                                                onChange={(e) =>
-                                                                    handleSubcategoryChange(
-                                                                        e,
-                                                                        index,
-                                                                    )
-                                                                }
-                                                                className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                                                placeholder="Tên danh mục con"
-                                                            />
-                                                            <input
-                                                                type="text"
-                                                                name="slug"
-                                                                value={
-                                                                    subcategory.slug
-                                                                }
-                                                                onChange={(e) =>
-                                                                    handleSubcategoryChange(
-                                                                        e,
-                                                                        index,
-                                                                    )
-                                                                }
-                                                                className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                                                placeholder="Slug"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            removeSubcategory(
-                                                                index,
-                                                            )
-                                                        }
-                                                        className="rounded-full p-1 text-red-500 hover:bg-red-50"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
-                                                </div>
-                                            ),
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Form thêm danh mục con mới */}
-                            <div className="rounded-md border border-dashed border-gray-300 p-3">
-                                <h4 className="mb-2 text-sm font-medium text-gray-600">
-                                    Thêm danh mục con mới
-                                </h4>
-                                <div className="flex items-end space-x-2">
-                                    <div className="flex-1 space-y-1">
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            value={newSubcategory.name || ''}
-                                            onChange={
-                                                handleNewSubcategoryChange
-                                            }
-                                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                            placeholder="Tên danh mục con"
-                                        />
-                                        <input
-                                            type="text"
-                                            name="slug"
-                                            value={newSubcategory.slug || ''}
-                                            onChange={
-                                                handleNewSubcategoryChange
-                                            }
-                                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                            placeholder="Slug (tự động tạo nếu để trống)"
-                                        />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={addSubcategory}
-                                        className="rounded-md bg-teal-100 px-3 py-2 text-sm text-teal-700 hover:bg-teal-200"
-                                    >
-                                        <PlusCircle
-                                            size={16}
-                                            className="mr-1 inline"
-                                        />{' '}
-                                        Thêm
-                                    </button>
-                                </div>
-                            </div>
+                        <div>
+                            <label
+                                htmlFor="parent"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Danh mục cha
+                            </label>
+                            <select
+                                id="parent"
+                                name="parent"
+                                value={formData.parent?.toString() || ''}
+                                onChange={handleChange}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                            >
+                                <option value="">
+                                    Không có (Danh mục gốc)
+                                </option>
+                                {parentCategories
+                                    .filter(
+                                        (parent) => parent._id !== formData._id,
+                                    ) // Loại bỏ chính nó khỏi danh sách cha
+                                    .map((parent) => (
+                                        <option
+                                            key={parent._id}
+                                            value={parent._id}
+                                        >
+                                            {parent.name}
+                                        </option>
+                                    ))}
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Để trống nếu đây là danh mục gốc
+                            </p>
                         </div>
                     </div>
 

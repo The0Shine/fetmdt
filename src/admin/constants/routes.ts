@@ -12,11 +12,11 @@ import { HomePage } from '../pages'
 import RoleManagement from '../pages/Role/role-management'
 import InventoryManagement from '../pages/inventory/inventory-management'
 import OrderManagement from '../pages/orders/order-management'
-import ProductManagement from '../pages/products/product-management'
 import { User } from 'lucide-react'
 import UserManagement from '../pages/UserManegerment/user-management'
-import CategoryManagement from '../pages/products/category-management'
 import TransactionManagement from '../pages/Transaction/transaction-management'
+import ProductManagement from '../pages/products/product-management'
+import CategoryManagement from '../pages/products/category-management'
 export const ROUTES = {
     HomePage: '',
     SignUp: '/signup',

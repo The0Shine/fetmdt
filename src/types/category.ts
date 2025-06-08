@@ -1,17 +1,16 @@
 export interface Subcategory {
-    id: string
+    _id: string
     name: string
     slug: string
 }
 
 export interface Category {
-    _id?: string
-    id?: string
+    _id: string
     name: string
     slug: string
     description?: string
     icon?: string
-    parent?: string | null
+    parent?: string | Category | null
     createdAt?: string
     updatedAt?: string
     color?: string // Trường bổ sung cho UI
@@ -25,7 +24,20 @@ export interface CategoryResponse {
 }
 
 export interface CategoriesResponse {
+    pagination: any
     success: boolean
     count: number
     data: Category[]
+}
+
+// Interface cho ICategory từ backend
+export interface ICategory {
+    _id: string
+    name: string
+    slug: string
+    description?: string
+    icon?: string
+    parent?: string | ICategory | null
+    createdAt?: string
+    updatedAt?: string
 }

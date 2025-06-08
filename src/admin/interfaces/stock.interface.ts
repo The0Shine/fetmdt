@@ -28,8 +28,8 @@ export interface IStockVoucher {
     status: 'pending' | 'approved' | 'rejected' | 'cancelled'
     createdBy?:
         | {
+              lastName: string
               _id: string
-              name: string
               email: string
           }
         | string
@@ -151,15 +151,17 @@ export interface StockResponse {
 }
 
 export interface StockHistoryResponse {
-    success: boolean
-    count: number
-    total: number
-    pagination: {
-        page: number
-        limit: number
-        totalPages: number
+    data: {
+        success: boolean
+        count: number
+        total: number
+        pagination: {
+            page: number
+            limit: number
+            totalPages: number
+        }
+        data: IStockHistory[]
     }
-    data: IStockHistory[]
 }
 
 export interface StockAdjustmentResponse {
@@ -227,6 +229,7 @@ export interface StockVoucherFormData {
     items: IStockItem[]
     notes?: string
     relatedOrder?: string
+    status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
 }
 
 export interface StockItemFormData {

@@ -1,35 +1,50 @@
+'use client'
+
 import type React from 'react'
 import { useState } from 'react'
 import { Search, Filter, X } from 'lucide-react'
 
 interface ProductFiltersProps {
-    searchTerm: string
-    onSearchChange: (value: string) => void
-    priceRange: [number, number]
-    onPriceRangeChange: (range: [number, number]) => void
-    onlyInStock: boolean
-    onInStockChange: (value: boolean) => void
-    sortBy: string
-    onSortChange: (value: string) => void
-    onFilterApply: () => void
-    onFilterReset: () => void
+    searchTerm?: string
+    onSearchChange?: (value: string) => void
+    priceRange?: [number, number]
+    onPriceRangeChange?: (range: [number, number]) => void
+    onlyInStock?: boolean
+    onInStockChange?: (value: boolean) => void
+    sortBy?: string
+    onSortChange?: (value: string) => void
+    onFilterApply?: () => void
+    onFilterReset?: () => void
+    // Thêm các props mới để tương thích với cách gọi trong category-page.tsx
+    sortOption?: string
+    onPriceChange?: (range: [number, number]) => void
 }
 
 const ProductFilters: React.FC<ProductFiltersProps> = ({
-    searchTerm,
-    onSearchChange,
-    priceRange,
-    onPriceRangeChange,
-    onlyInStock,
-    onInStockChange,
-    sortBy,
-    onSortChange,
-    onFilterApply,
-    onFilterReset,
+    searchTerm = '',
+    onSearchChange = () => {},
+    priceRange = [0, 100000000],
+    onPriceRangeChange = () => {},
+    onlyInStock = false,
+    onInStockChange = () => {},
+    sortBy = 'featured',
+    onSortChange = () => {},
+    onFilterApply = () => {},
+    onFilterReset = () => {},
+    // Sử dụng các props mới nếu được cung cấp
+    sortOption,
+    onPriceChange,
 }) => {
     const [localPriceRange, setLocalPriceRange] =
         useState<[number, number]>(priceRange)
     const [showFilters, setShowFilters] = useState(false)
+
+    // Sử dụng các props mới nếu được cung cấp
+    const effectiveSortBy = sortOption || sortBy
+    const effectiveOnSortChange = (value: string) => {
+        if (onSortChange) onSortChange(value)
+        if (sortOption !== undefined && onPriceChange) onSortChange(value)
+    }
 
     const handlePriceChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -42,7 +57,8 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
     }
 
     const applyPriceFilter = () => {
-        onPriceRangeChange(localPriceRange)
+        if (onPriceRangeChange) onPriceRangeChange(localPriceRange)
+        if (onPriceChange) onPriceChange(localPriceRange)
     }
 
     const handleReset = () => {
@@ -68,8 +84,8 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
 
                 <div className="flex gap-2">
                     <select
-                        value={sortBy}
-                        onChange={(e) => onSortChange(e.target.value)}
+                        value={effectiveSortBy}
+                        onChange={(e) => effectiveOnSortChange(e.target.value)}
                         className="rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     >
                         <option value="featured">Nổi bật</option>

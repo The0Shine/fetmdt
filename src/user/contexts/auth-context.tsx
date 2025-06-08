@@ -106,19 +106,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     }
 
-    const logout = async () => {
-        try {
-            await mainRepository.post('/api/auth/logout')
-        } catch (error) {
-            console.error('Logout API error:', error)
-        } finally {
-            localStorage.removeItem('access_token')
-            localStorage.removeItem('refresh_token')
-            localStorage.removeItem('user')
-            setUser(null)
-            setIsAuthenticated(false)
-            navigate('/login')
-        }
+    const logout = () => {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+        setUser(null)
+        setIsAuthenticated(false)
+        // navigate('/login', { replace: true })
     }
 
     const register = async (

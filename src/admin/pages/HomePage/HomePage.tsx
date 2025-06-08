@@ -87,11 +87,11 @@ export const HomePage = () => {
             </div>
 
             <Tabs defaultValue="overview" className="space-y-4">
-                <TabsList>
+                {/* <TabsList>
                     <TabsTrigger value="overview">Tổng quan</TabsTrigger>
                     <TabsTrigger value="analytics">Phân tích</TabsTrigger>
                     <TabsTrigger value="reports">Báo cáo</TabsTrigger>
-                </TabsList>
+                </TabsList> */}
 
                 <TabsContent value="overview" className="space-y-4">
                     {/* Stats Cards */}

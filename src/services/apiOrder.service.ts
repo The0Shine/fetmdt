@@ -3,7 +3,7 @@ import { mainRepository } from '@/utils/Repository'
 
 // Định nghĩa các interface
 interface Order {
-    id: string
+    _id: string
     orderNumber: string
     customerId: string
     customerName: string
@@ -50,19 +50,14 @@ export const updateOrderStatus = async (
     id: string,
     status: 'pending' | 'processing' | 'completed' | 'cancelled',
 ) => {
-    try {
-        const response = await mainRepository.put(`/api/orders/${id}/status`, {
-            status,
-        })
-        console.log(response)
+    const response = await mainRepository.put(`/api/orders/${id}/status`, {
+        status,
+    })
+    console.log(response)
 
-        // Nếu trạng thái đơn hàng được cập nhật thành "completed", tự động tạo phiếu xuất kho
+    // Nếu trạng thái đơn hàng được cập nhật thành "completed", tự động tạo phiếu xuất kho
 
-        return response.data
-    } catch (error) {
-        console.error(`Error updating status for order ${id}:`, error)
-        throw error
-    }
+    return response.data
 }
 
 export const updatePaymentStatus = async (
@@ -88,6 +83,8 @@ export const updatePaymentStatus = async (
 export const createOrder = async (orderData: any): Promise<Order> => {
     try {
         const response = await mainRepository.post('/api/orders', orderData)
+        console.log('Order created successfully:', response)
+
         return response.data
     } catch (error) {
         console.error('Error creating order:', error)
@@ -124,11 +121,7 @@ export const getUserOrders = async (): Promise<Order[]> => {
 export const updateOrderToPaid = async (id: string): Promise<Order> => {
     try {
         const response = await mainRepository.put(`/api/orders/${id}/pay`)
-        if (!response) {
-            throw new Error(
-                'No response received from server when updating payment to paid',
-            )
-        }
+
         return response.data
     } catch (error) {
         console.error(`Error updating order ${id} to paid:`, error)

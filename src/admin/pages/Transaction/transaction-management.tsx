@@ -865,7 +865,7 @@ export default function TransactionManagement() {
                                 <p className="font-medium">
                                     {typeof selectedTransaction.createdBy ===
                                     'object'
-                                        ? selectedTransaction.createdBy.name
+                                        ? selectedTransaction.createdBy.lastName
                                         : 'Admin'}
                                 </p>
                             </div>

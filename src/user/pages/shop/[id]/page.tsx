@@ -63,8 +63,7 @@ export default function ProductDetailPage() {
                         // Lọc bỏ sản phẩm hiện tại khỏi danh sách đề xuất
                         const filteredProducts =
                             recommendedResponse.data.filter(
-                                (p) =>
-                                    p._id !== productId && p.id !== productId,
+                                (p) => p._id !== productId,
                             )
                         setRecommendedProducts(filteredProducts)
                     }
@@ -605,7 +604,7 @@ export default function ProductDetailPage() {
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {recommendedProducts.map((product) => (
                             <ProductCard
-                                key={product._id || product.id}
+                                key={product._id}
                                 product={product}
                                 onAddToCart={() => addItem(product, 1)}
                             />

@@ -1,7 +1,23 @@
-import { CartItem } from '../../contexts/cart-context'
+'use client'
+
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '../../../components/ui/card'
+import { Separator } from '../../../components/ui/separator'
+import { Badge } from '../../../components/ui/badge'
+import { ShoppingBag, Truck, Calculator } from 'lucide-react'
 
 interface OrderSummaryProps {
-    items: CartItem[]
+    items: Array<{
+        _id: string
+        name: string
+        price: number
+        quantity: number
+        image?: string
+    }>
     subtotal: number
     shipping: number
     total: number
@@ -13,88 +29,130 @@ export default function OrderSummary({
     shipping,
     total,
 }: OrderSummaryProps) {
-    // Định dạng giá tiền
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('vi-VN', {
             style: 'currency',
             currency: 'VND',
-            maximumFractionDigits: 0,
         }).format(price)
     }
 
     return (
-        <div className="rounded-lg bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">
-                Tóm tắt đơn hàng
-            </h2>
+        <Card className="shadow-sm">
+            <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100">
+                        <ShoppingBag className="h-4 w-4 text-purple-600" />
+                    </div>
+                    Tóm tắt đơn hàng
+                    <Badge variant="secondary" className="ml-auto">
+                        {items.length} sản phẩm
+                    </Badge>
+                </CardTitle>
+            </CardHeader>
 
-            <div className="mb-4 border-b pb-4">
-                <div className="max-h-80 overflow-y-auto pr-2">
+            <CardContent className="space-y-4">
+                {/* Items List */}
+                <div className="space-y-3">
                     {items.map((item) => (
-                        <div
-                            key={item.id}
-                            className="flex border-b py-3 last:border-0"
-                        >
-                            <div className="relative h-16 w-16 flex-shrink-0 rounded-md border bg-gray-50">
+                        <div key={item._id} className="flex items-center gap-3">
+                            <div className="relative">
                                 <img
-                                    src={item.image || '/placeholder.svg'}
+                                    src={
+                                        item.image ||
+                                        '/placeholder.svg?height=50&width=50'
+                                    }
                                     alt={item.name}
-                                    sizes="64px"
-                                    className="object-contain p-1"
+                                    className="h-12 w-12 rounded-lg object-cover"
                                 />
+                                <Badge
+                                    variant="secondary"
+                                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs"
+                                >
+                                    {item.quantity}
+                                </Badge>
                             </div>
-                            <div className="ml-4 flex flex-1 flex-col">
-                                <div className="flex justify-between text-sm font-medium text-gray-800">
-                                    <h3 className="line-clamp-2">
-                                        {item.name}
-                                    </h3>
-                                    <p className="ml-4">
-                                        {formatPrice(item.price)}
-                                    </p>
-                                </div>
-                                <div className="flex flex-1 items-end justify-between text-sm">
-                                    <p className="text-gray-500">
-                                        SL: {item.quantity}
-                                    </p>
-                                    <p className="font-medium text-gray-800">
-                                        {formatPrice(
-                                            item.price * item.quantity,
-                                        )}
-                                    </p>
-                                </div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="truncate text-sm font-medium text-gray-900">
+                                    {item.name}
+                                </h4>
+                                <p className="text-xs text-gray-500">
+                                    {formatPrice(item.price)} × {item.quantity}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-semibold">
+                                    {formatPrice(item.price * item.quantity)}
+                                </p>
                             </div>
                         </div>
                     ))}
                 </div>
-            </div>
 
-            <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                    <p className="text-gray-600">Tạm tính</p>
-                    <p className="font-medium text-gray-800">
-                        {formatPrice(subtotal)}
-                    </p>
+                <Separator />
+
+                {/* Pricing Breakdown */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Tạm tính:</span>
+                        <span className="font-medium">
+                            {formatPrice(subtotal)}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-1 text-gray-600">
+                            <Truck className="h-3 w-3" />
+                            Phí vận chuyển:
+                        </div>
+                        <span className="font-medium">
+                            {shipping > 0 ? formatPrice(shipping) : 'Miễn phí'}
+                        </span>
+                    </div>
+
+                    {/* Discount placeholder */}
+                    <div className="flex items-center justify-between text-sm text-green-600">
+                        <span>Giảm giá:</span>
+                        <span>-{formatPrice(0)}</span>
+                    </div>
                 </div>
-                <div className="flex justify-between">
-                    <p className="text-gray-600">Phí vận chuyển</p>
-                    <p className="font-medium text-gray-800">
-                        {formatPrice(shipping)}
-                    </p>
-                </div>
-                <div className="mt-2 border-t pt-2">
-                    <div className="flex justify-between">
-                        <p className="text-base font-semibold text-gray-800">
-                            Tổng cộng
-                        </p>
-                        <p className="text-base font-semibold text-teal-600">
+
+                <Separator />
+
+                {/* Total */}
+                <div className="rounded-lg bg-teal-50 p-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Calculator className="h-4 w-4 text-teal-600" />
+                            <span className="font-semibold text-gray-900">
+                                Tổng cộng:
+                            </span>
+                        </div>
+                        <span className="text-xl font-bold text-teal-600">
                             {formatPrice(total)}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Savings notice */}
+                {shipping === 0 && (
+                    <div className="rounded-lg bg-green-50 p-3 text-center">
+                        <p className="text-sm text-green-700">
+                            🎉 Bạn được miễn phí vận chuyển!
                         </p>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                        Đã bao gồm VAT (nếu có)
-                    </p>
+                )}
+
+                {/* Estimated delivery */}
+                <div className="rounded-lg bg-blue-50 p-3">
+                    <div className="flex items-center gap-2 text-sm text-blue-700">
+                        <Truck className="h-4 w-4" />
+                        <div>
+                            <p className="font-medium">Dự kiến giao hàng</p>
+                            <p className="text-xs">2-3 ngày làm việc</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     )
 }

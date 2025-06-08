@@ -1,10 +1,12 @@
 'use client'
 
 import type React from 'react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Upload, Plus, Trash2, ImageIcon } from 'lucide-react'
-import { ProductFormData } from '../../../../types/product'
+import type { ProductFormData } from '../../../../types/product'
 import { uploadImage } from '../../../../utils/Upload'
+import type { ICategory } from '@/types/category'
+import { getSubcategories } from '../../../../services/apiCategory.service'
 
 interface ProductFormProps {
     formData: ProductFormData
@@ -15,7 +17,7 @@ interface ProductFormProps {
     ) => void
     onImagesChange: (mainImage: string, additionalImages: string[]) => void
     onSubmit: (e: React.FormEvent) => void
-    categories: string[]
+    categories: ICategory[]
     isEditing: boolean
 }
 
@@ -29,6 +31,66 @@ const ProductForm: React.FC<ProductFormProps> = ({
 }) => {
     const [isUploading, setIsUploading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [availableSubcategories, setAvailableSubcategories] = useState<
+        ICategory[]
+    >([])
+    const [loadingSubcategories, setLoadingSubcategories] = useState(false)
+
+    // Lấy danh mục cha (không có parent)
+    const parentCategories = categories.filter((cat) => !cat.parent)
+
+    // Load subcategories khi category thay đổi
+    useEffect(() => {
+        const loadSubcategories = async () => {
+            if (formData.category) {
+                setLoadingSubcategories(true)
+                setError(null)
+                try {
+                    const response = await getSubcategories(formData.category)
+                    if (response && response.data) {
+                        setAvailableSubcategories(response.data)
+                    } else {
+                        setAvailableSubcategories([])
+                    }
+                } catch (err) {
+                    console.error('Error loading subcategories:', err)
+                    setAvailableSubcategories([])
+                    setError('Không thể tải danh mục con. Vui lòng thử lại.')
+                } finally {
+                    setLoadingSubcategories(false)
+                }
+            } else {
+                setAvailableSubcategories([])
+            }
+        }
+
+        loadSubcategories()
+    }, [formData.category])
+
+    // Reset subcategory khi category thay đổi
+    useEffect(() => {
+        if (formData.subcategory && formData.category) {
+            // Kiểm tra xem subcategory hiện tại có thuộc category mới không
+            const isValidSubcategory = availableSubcategories.some(
+                (sub) => sub._id === formData.subcategory,
+            )
+            if (!isValidSubcategory && availableSubcategories.length > 0) {
+                // Reset subcategory nếu không hợp lệ
+                const event = {
+                    target: {
+                        name: 'subcategory',
+                        value: '',
+                    },
+                } as unknown as React.ChangeEvent<HTMLSelectElement>
+                onChange(event)
+            }
+        }
+    }, [
+        availableSubcategories,
+        formData.subcategory,
+        formData.category,
+        onChange,
+    ])
 
     const handleCheckboxChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,6 +99,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 target: {
                     name,
                     value: checked,
+                    type: 'checkbox',
                 },
             } as unknown as React.ChangeEvent<HTMLInputElement>
             onChange(event)
@@ -53,11 +116,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 setIsUploading(true)
                 setError(null)
                 const imageUrl = await uploadImage(file)
-                console.log('Image URL received:', imageUrl)
                 onImagesChange(imageUrl, formData.images || [])
             } catch (err) {
                 setError('Không thể tải lên hình ảnh. Vui lòng thử lại.')
-                console.error('Error al cargar imagen:', err)
+                console.error('Error uploading image:', err)
             } finally {
                 setIsUploading(false)
             }
@@ -76,7 +138,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
                 const newImages = [...(formData.images || [])]
 
-                // Procesar cada archivo
                 for (let i = 0; i < files.length; i++) {
                     const imageUrl = await uploadImage(files[i])
                     newImages.push(imageUrl)
@@ -85,7 +146,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 onImagesChange(formData.image || '', newImages)
             } catch (err) {
                 setError('Không thể tải lên một số hình ảnh. Vui lòng thử lại.')
-                console.error('Error al cargar imágenes:', err)
+                console.error('Error uploading images:', err)
             } finally {
                 setIsUploading(false)
             }
@@ -110,24 +171,20 @@ const ProductForm: React.FC<ProductFormProps> = ({
         (url: string, index: number) => {
             const newImages = [...(formData.images || [])]
 
-            // Si hay una imagen principal actual, añadirla a las imágenes adicionales
             if (formData.image) {
                 newImages.push(formData.image)
             }
 
-            // Eliminar la imagen seleccionada de las adicionales
             newImages.splice(index, 1)
-
-            // Establecer la nueva imagen principal
             onImagesChange(url, newImages)
         },
         [formData.image, formData.images, onImagesChange],
     )
 
     return (
-        <form onSubmit={onSubmit} className="space-y-8">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                <div className="space-y-6">
+        <form onSubmit={onSubmit} className="space-y-6 lg:space-y-8">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+                <div className="space-y-4 lg:space-y-6">
                     <div>
                         <label
                             htmlFor="name"
@@ -142,94 +199,129 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             value={formData.name || ''}
                             onChange={onChange}
                             required
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             placeholder="Nhập tên sản phẩm"
                         />
                     </div>
 
-                    <div>
-                        <label
-                            htmlFor="category"
-                            className="mb-1 block text-sm font-medium text-gray-700"
-                        >
-                            Danh mục <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            id="category"
-                            name="category"
-                            value={formData.category || ''}
-                            onChange={onChange}
-                            required
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                        >
-                            <option value="">Chọn danh mục</option>
-                            {categories.map((category) => (
-                                <option key={category} value={category}>
-                                    {category}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label
+                                htmlFor="category"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Danh mục <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="category"
+                                name="category"
+                                value={formData.category || ''}
+                                onChange={onChange}
+                                required
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                            >
+                                <option value="">Chọn danh mục</option>
+                                {parentCategories.map((category) => (
+                                    <option
+                                        key={category._id}
+                                        value={category._id}
+                                    >
+                                        {category.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="subcategory"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Danh mục con
+                            </label>
+                            <select
+                                id="subcategory"
+                                name="subcategory"
+                                value={formData.subcategory || ''}
+                                onChange={onChange}
+                                disabled={
+                                    !formData.category || loadingSubcategories
+                                }
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
+                            >
+                                <option value="">
+                                    {loadingSubcategories
+                                        ? 'Đang tải...'
+                                        : 'Chọn danh mục con'}
                                 </option>
-                            ))}
-                        </select>
+                                {availableSubcategories.map((subcategory) => (
+                                    <option
+                                        key={subcategory._id}
+                                        value={subcategory._id}
+                                    >
+                                        {subcategory.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {!formData.category && (
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Vui lòng chọn danh mục chính trước
+                                </p>
+                            )}
+                            {formData.category &&
+                                !loadingSubcategories &&
+                                availableSubcategories.length === 0 && (
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Danh mục này không có danh mục con
+                                    </p>
+                                )}
+                        </div>
                     </div>
 
-                    <div>
-                        <label
-                            htmlFor="subcategory"
-                            className="mb-1 block text-sm font-medium text-gray-700"
-                        >
-                            Danh mục phụ
-                        </label>
-                        <input
-                            type="text"
-                            id="subcategory"
-                            name="subcategory"
-                            value={formData.subcategory || ''}
-                            onChange={onChange}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                            placeholder="Nhập danh mục phụ (nếu có)"
-                        />
-                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label
+                                htmlFor="unit"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Đơn vị tính{' '}
+                                <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="unit"
+                                name="unit"
+                                value={formData.unit || ''}
+                                onChange={onChange}
+                                required
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                            >
+                                <option value="">Chọn đơn vị tính</option>
+                                <option value="Chiếc">Chiếc</option>
+                                <option value="Bộ">Bộ</option>
+                                <option value="Hộp">Hộp</option>
+                                <option value="Cái">Cái</option>
+                                <option value="Đôi">Đôi</option>
+                                <option value="Thùng">Thùng</option>
+                            </select>
+                        </div>
 
-                    <div>
-                        <label
-                            htmlFor="unit"
-                            className="mb-1 block text-sm font-medium text-gray-700"
-                        >
-                            Đơn vị tính <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            id="unit"
-                            name="unit"
-                            value={formData.unit || ''}
-                            onChange={onChange}
-                            required
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                        >
-                            <option value="">Chọn đơn vị tính</option>
-                            <option value="Chiếc">Chiếc</option>
-                            <option value="Bộ">Bộ</option>
-                            <option value="Hộp">Hộp</option>
-                            <option value="Cái">Cái</option>
-                            <option value="Đôi">Đôi</option>
-                            <option value="Thùng">Thùng</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label
-                            htmlFor="barcode"
-                            className="mb-1 block text-sm font-medium text-gray-700"
-                        >
-                            Mã vạch
-                        </label>
-                        <input
-                            type="text"
-                            id="barcode"
-                            name="barcode"
-                            value={formData.barcode || ''}
-                            onChange={onChange}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                            placeholder="Nhập mã vạch sản phẩm"
-                        />
+                        <div>
+                            <label
+                                htmlFor="barcode"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Mã vạch
+                            </label>
+                            <input
+                                type="text"
+                                id="barcode"
+                                name="barcode"
+                                value={formData.barcode || ''}
+                                onChange={onChange}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                placeholder="Nhập mã vạch sản phẩm"
+                            />
+                        </div>
                     </div>
 
                     <div>
@@ -247,14 +339,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             onChange={onChange}
                             required
                             rows={4}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             placeholder="Nhập mô tả sản phẩm"
                         ></textarea>
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4 lg:space-y-6">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label
                                 htmlFor="price"
@@ -270,36 +362,75 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                 onChange={onChange}
                                 required
                                 min="0"
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                 placeholder="Nhập giá bán"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                htmlFor="oldPrice"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Giá cũ
+                            </label>
+                            <input
+                                type="number"
+                                id="oldPrice"
+                                name="oldPrice"
+                                value={formData.oldPrice || ''}
+                                onChange={onChange}
+                                min="0"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                placeholder="Nhập giá cũ"
                             />
                         </div>
                     </div>
 
-                    <div>
-                        <label
-                            htmlFor="status"
-                            className="mb-1 block text-sm font-medium text-gray-700"
-                        >
-                            Trạng thái
-                        </label>
-                        <select
-                            id="status"
-                            name="status"
-                            value={formData.status || 'in-stock'}
-                            onChange={onChange}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                        >
-                            <option value="in-stock">Còn hàng</option>
-                            <option value="out-of-stock">Hết hàng</option>
-                        </select>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label
+                                htmlFor="quantity"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Số lượng <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                id="quantity"
+                                name="quantity"
+                                value={formData.quantity || 0}
+                                onChange={onChange}
+                                required
+                                min="0"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                placeholder="Nhập số lượng"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                htmlFor="costPrice"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Giá vốn
+                            </label>
+                            <input
+                                type="number"
+                                id="costPrice"
+                                name="costPrice"
+                                value={formData.costPrice || ''}
+                                onChange={onChange}
+                                min="0"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                placeholder="Nhập giá vốn"
+                            />
+                        </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <label className="block text-sm font-medium text-gray-700">
                             Đánh dấu sản phẩm
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                             <label className="flex items-center space-x-2">
                                 <input
                                     type="checkbox"
@@ -349,6 +480,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                 </span>
                             </label>
                         </div>
+                        <label className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                name="published"
+                                checked={formData.published !== false}
+                                onChange={handleCheckboxChange}
+                                className="rounded border-gray-300 text-teal-500 focus:ring-teal-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                                Công khai sản phẩm
+                            </span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -477,7 +620,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             </label>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {(formData.images || []).map((url, index) => (
                                 <div
                                     key={index}
@@ -492,14 +635,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                     </div>
                                     <div className="border-t border-gray-200 bg-gray-50 p-3">
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center">
+                                            <div className="flex min-w-0 flex-1 items-center">
                                                 <ImageIcon
                                                     size={16}
                                                     className="mr-2 flex-shrink-0 text-gray-500"
                                                 />
                                                 <span className="truncate text-sm font-medium text-gray-700">{`Hình ảnh ${index + 1}`}</span>
                                             </div>
-                                            <div className="ml-2 flex items-center space-x-2">
+                                            <div className="ml-2 flex items-center space-x-1">
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -508,7 +651,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                                             index,
                                                         )
                                                     }
-                                                    className="text-blue-500 hover:text-blue-700"
+                                                    className="p-1 text-blue-500 hover:text-blue-700"
                                                     title="Đặt làm ảnh chính"
                                                 >
                                                     <Plus size={14} />
@@ -520,7 +663,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                                             index,
                                                         )
                                                     }
-                                                    className="text-red-500 hover:text-red-700"
+                                                    className="p-1 text-red-500 hover:text-red-700"
                                                     title="Xóa ảnh"
                                                 >
                                                     <Trash2 size={14} />

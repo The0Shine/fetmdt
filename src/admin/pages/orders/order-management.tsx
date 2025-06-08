@@ -113,7 +113,7 @@ export default function OrderManagement() {
             setUpdatingPayment(orderId)
 
             const response = await mainRepository.put(
-                `/api/orders/${orderId}/payment`,
+                `/api/orders/${orderId}/pay`,
                 {
                     isPaid: newPaymentStatus === 'paid',
                 },

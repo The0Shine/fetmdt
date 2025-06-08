@@ -1,28 +1,36 @@
 'use client'
 
 import type React from 'react'
-import { createContext, useState, useEffect, useContext } from 'react'
+import {
+    createContext,
+    useState,
+    useEffect,
+    useContext,
+    useMemo,
+    useCallback,
+} from 'react'
 import type { Product } from '../../types/product'
 import { useNavigate } from 'react-router-dom'
 import { mainRepository } from '../../utils/Repository'
 import { useAuth } from './auth-context'
 
 export interface CartItem extends Product {
+    stock: number
+    productId: any
     quantity: number
-    _id?: string // ID của CartItem từ server
+    _id: string // ID của CartItem từ server
 }
 
 interface CartContextType {
     items: CartItem[]
     addItem: (product: Product, quantity?: number) => Promise<void>
-    removeItem: (productId: number) => Promise<void>
-    updateQuantity: (productId: number, quantity: number) => Promise<void>
+    removeItem: (productId: string) => Promise<void>
+    updateQuantity: (productId: string, quantity: number) => Promise<void>
     clearCart: () => Promise<void>
     totalItems: number
     totalPrice: number
     loading: boolean
     error: string | null
-    redirectToLogin: () => void
 }
 
 export const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -36,17 +44,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     const { user, isAuthenticated } = useAuth()
     const navigate = useNavigate()
 
-    // Tính toán tổng số lượng và tổng giá trị
-    const totalItems = items.reduce((total, item) => total + item.quantity, 0)
-    const totalPrice = items.reduce(
-        (total, item) => total + item.price * item.quantity,
-        0,
-    )
+    // Memoize tính toán để tránh re-render không cần thiết
+    const cartStats = useMemo(() => {
+        const totalItems = items.reduce(
+            (total, item) => total + item.quantity,
+            0,
+        )
+        const totalPrice = items.reduce(
+            (total, item) => total + item.price * item.quantity,
+            0,
+        )
+        return { totalItems, totalPrice }
+    }, [items])
 
     // Chuyển hướng đến trang đăng nhập
-    const redirectToLogin = () => {
-        navigate('/login?redirect=cart')
-    }
 
     // Lấy giỏ hàng từ API khi đã đăng nhập
     useEffect(() => {
@@ -72,13 +83,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
                 }>('api/cart')
 
                 if (response) {
+                    console.log(response.data)
+
                     // Chuyển đổi dữ liệu từ API sang định dạng CartItem
                     const cartItems = response.data.items.map((item) => ({
                         ...item.product,
-                        quantity: item.quantity,
+                        quantity: item.quantity, // Cart quantity
+                        stock: item.product.quantity, // Preserve original product stock
+                        productId: item.product._id,
                         _id: item._id,
                     }))
                     setItems(cartItems)
+                    console.log('Giỏ hàng đã được tải:', cartItems)
                 }
             } catch (error) {
                 console.error('Lỗi khi lấy giỏ hàng:', error)
@@ -92,150 +108,155 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [isAuthenticated, user])
 
     // Thêm sản phẩm vào giỏ hàng
-    const addItem = async (product: Product, quantity = 1) => {
-        // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
-        if (!isAuthenticated) {
-            redirectToLogin()
-            return
-        }
+    const addItem = useCallback(
+        async (product: Product, quantity = 1) => {
+            // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
 
-        setError(null)
-        setLoading(true)
-        console.log(product)
+            setError(null)
+            setLoading(true)
 
-        try {
-            const response = await mainRepository.post<{
-                data: {
-                    items: Array<{
-                        _id: string
-                        product: Product
-                        quantity: number
-                    }>
+            try {
+                const response = await mainRepository.post<{
+                    data: {
+                        items: Array<{
+                            _id: string
+                            product: Product
+                            quantity: number
+                        }>
+                    }
+                }>('api/cart', {
+                    productId: product._id,
+                    quantity,
+                })
+
+                if (response) {
+                    const cartItems = response.data.items.map((item) => ({
+                        ...item.product,
+                        quantity: item.quantity, // Cart quantity
+                        stock: item.product.quantity, // Preserve original product stock
+                        productId: item.product._id,
+                        _id: item._id,
+                    }))
+                    console.log(
+                        'Sản phẩm đã được thêm vào giỏ hàng:',
+                        cartItems,
+                    )
+
+                    setItems(cartItems)
                 }
-            }>('api/cart', {
-                productId: product._id,
-                quantity,
-            })
-
-            if (response) {
-                // Cập nhật state từ dữ liệu API
-                const cartItems = response.data.items.map((item) => ({
-                    ...item.product,
-                    quantity: item.quantity,
-                    _id: item._id,
-                }))
-                setItems(cartItems)
+            } catch (error) {
+                console.error('Lỗi khi thêm sản phẩm vào giỏ hàng:', error)
+                setError('Không thể thêm sản phẩm vào giỏ hàng')
+            } finally {
+                setLoading(false)
             }
-        } catch (error) {
-            console.error('Lỗi khi thêm sản phẩm vào giỏ hàng:', error)
-            setError('Không thể thêm sản phẩm vào giỏ hàng')
-        } finally {
-            setLoading(false)
-        }
-    }
+        },
+        [isAuthenticated],
+    )
 
     // Xóa sản phẩm khỏi giỏ hàng
-    const removeItem = async (productId: number) => {
-        // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
-        if (!isAuthenticated) {
-            redirectToLogin()
-            return
-        }
+    const removeItem = useCallback(
+        async (productId: string) => {
+            setError(null)
 
-        setError(null)
+            // Tìm cartItemId từ productId
+            const cartItem = items.find((item) => item._id === productId)
+            if (!cartItem || !cartItem._id) return
 
-        // Tìm cartItemId từ productId
-        const cartItem = items.find((item) => item.id === productId)
-        if (!cartItem || !cartItem._id) return
+            setLoading(true)
+            try {
+                const response = await mainRepository.delete<{
+                    data: {
+                        items: Array<{
+                            _id: string
+                            product: Product
+                            quantity: number
+                        }>
+                    }
+                }>(`api/cart/${cartItem._id}`)
 
-        // Xử lý qua API
-        setLoading(true)
-        try {
-            const response = await mainRepository.delete<{
-                data: {
-                    items: Array<{
-                        _id: string
-                        product: Product
-                        quantity: number
-                    }>
+                if (response) {
+                    const cartItems = response.data.items.map((item) => ({
+                        ...item.product,
+                        quantity: item.quantity, // Cart quantity
+                        stock: item.product.quantity, // Preserve original product stock
+                        productId: item.product._id,
+                        _id: item._id,
+                    }))
+                    setItems(cartItems)
                 }
-            }>(`api/cart/${cartItem._id}`)
-
-            if (response) {
-                // Cập nhật state từ dữ liệu API
-                const cartItems = response.data.items.map((item) => ({
-                    ...item.product,
-                    quantity: item.quantity,
-                    _id: item._id,
-                }))
-                setItems(cartItems)
+            } catch (error) {
+                console.error('Lỗi khi xóa sản phẩm khỏi giỏ hàng:', error)
+                setError('Không thể xóa sản phẩm khỏi giỏ hàng')
+            } finally {
+                setLoading(false)
             }
-        } catch (error) {
-            console.error('Lỗi khi xóa sản phẩm khỏi giỏ hàng:', error)
-            setError('Không thể xóa sản phẩm khỏi giỏ hàng')
-        } finally {
-            setLoading(false)
-        }
-    }
+        },
+        [isAuthenticated, items],
+    )
 
     // Cập nhật số lượng sản phẩm
-    const updateQuantity = async (productId: number, quantity: number) => {
-        // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
-        if (!isAuthenticated) {
-            redirectToLogin()
-            return
-        }
+    const updateQuantity = useCallback(
+        async (productId: string, quantity: number) => {
+            setError(null)
 
-        setError(null)
-
-        if (quantity <= 0) {
-            return removeItem(productId)
-        }
-
-        // Tìm cartItemId từ productId
-        const cartItem = items.find((item) => item.id === productId)
-        if (!cartItem || !cartItem._id) return
-
-        // Xử lý qua API
-        setLoading(true)
-        try {
-            const response = await mainRepository.put<{
-                data: {
-                    items: Array<{
-                        _id: string
-                        product: Product
-                        quantity: number
-                    }>
-                }
-            }>(`api/cart/${cartItem._id}`, {
-                quantity,
-            })
-
-            if (response) {
-                // Cập nhật state từ dữ liệu API
-                const cartItems = response.data.items.map((item) => ({
-                    ...item.product,
-                    quantity: item.quantity,
-                    _id: item._id,
-                }))
-                setItems(cartItems)
+            if (quantity <= 0) {
+                return removeItem(productId)
             }
-        } catch (error) {
-            console.error('Lỗi khi cập nhật số lượng sản phẩm:', error)
-            setError('Không thể cập nhật số lượng sản phẩm')
-        } finally {
-            setLoading(false)
-        }
-    }
+
+            // Tìm cartItemId từ productId
+            const cartItem = items.find((item) => item._id === productId)
+            if (!cartItem || !cartItem._id) return
+
+            // Optimistically update the UI first
+            setItems((prevItems) =>
+                prevItems.map((item) =>
+                    item._id === productId ? { ...item, quantity } : item,
+                ),
+            )
+
+            try {
+                const response = await mainRepository.put<{
+                    data: {
+                        items: Array<{
+                            _id: string
+                            product: Product
+                            quantity: number
+                        }>
+                    }
+                }>(`api/cart/${cartItem._id}`, {
+                    quantity,
+                })
+
+                if (response) {
+                    const cartItems = response.data.items.map((item) => ({
+                        ...item.product,
+                        quantity: item.quantity, // Cart quantity
+                        stock: item.product.quantity, // Preserve original product stock
+                        productId: item.product._id,
+                        _id: item._id,
+                    }))
+                    setItems(cartItems)
+                }
+            } catch (error) {
+                console.error('Lỗi khi cập nhật số lượng sản phẩm:', error)
+                setError('Không thể cập nhật số lượng sản phẩm')
+
+                // Revert to original quantity on error
+                setItems((prevItems) =>
+                    prevItems.map((item) =>
+                        item._id === productId
+                            ? { ...item, quantity: cartItem.quantity }
+                            : item,
+                    ),
+                )
+            }
+        },
+        [isAuthenticated, items, removeItem],
+    )
 
     // Xóa toàn bộ giỏ hàng
-    const clearCart = async () => {
-        // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
-        if (!isAuthenticated) {
-            redirectToLogin()
-            return
-        }
-
+    const clearCart = useCallback(async () => {
         setError(null)
         setLoading(true)
 
@@ -248,23 +269,36 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         } finally {
             setLoading(false)
         }
-    }
+    }, [isAuthenticated])
+
+    // Memoize context value để tránh re-render không cần thiết
+    const contextValue = useMemo(
+        () => ({
+            items,
+            addItem,
+            removeItem,
+            updateQuantity,
+            clearCart,
+            totalItems: cartStats.totalItems,
+            totalPrice: cartStats.totalPrice,
+            loading,
+            error,
+        }),
+        [
+            items,
+            addItem,
+            removeItem,
+            updateQuantity,
+            clearCart,
+            cartStats.totalItems,
+            cartStats.totalPrice,
+            loading,
+            error,
+        ],
+    )
 
     return (
-        <CartContext.Provider
-            value={{
-                items,
-                addItem,
-                removeItem,
-                updateQuantity,
-                clearCart,
-                totalItems,
-                totalPrice,
-                loading,
-                error,
-                redirectToLogin,
-            }}
-        >
+        <CartContext.Provider value={contextValue}>
             {children}
         </CartContext.Provider>
     )

@@ -59,6 +59,7 @@ export default function StockVoucherModal({
         reason: voucher?.reason || '',
         items: voucher?.items || [],
         notes: voucher?.notes || '',
+        status: 'approved',
     })
 
     // State cho việc tìm kiếm và chọn sản phẩm
@@ -82,7 +83,9 @@ export default function StockVoucherModal({
             const response = await getProducts({
                 limit: 1000,
             })
-            setAllProducts(response.data)
+            if (response) {
+                setAllProducts(response.data)
+            }
         } catch (error) {
             console.error('Error loading products:', error)
             toast.error('Không thể tải danh sách sản phẩm')
@@ -202,6 +205,7 @@ export default function StockVoucherModal({
         try {
             // Gọi API tạo phiếu kho
             const response = await createStockVoucher(formData)
+            console.log('Creating stock voucher with data:', formData)
 
             if (response) {
                 toast.success(

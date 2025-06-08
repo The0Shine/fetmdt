@@ -95,28 +95,28 @@ export interface InventoryStats {
 }
 
 export const dashboardApi = {
-    async getOverview(): Promise<DashboardOverview> {
+    async getOverview() {
         const response = await mainRepository.get<DashboardOverview>(
             '/api/dashboard/overview',
         )
         return response
     },
 
-    async getRevenueChart(period: string = '7days'): Promise<RevenueChartData> {
+    async getRevenueChart(period: string = '7days') {
         const response = await mainRepository.get<RevenueChartData>(
             `/api/dashboard/revenue-chart?period=${period}`,
         )
         return response
     },
 
-    async getProductStats(): Promise<ProductStats> {
+    async getProductStats() {
         const response = await mainRepository.get<ProductStats>(
             '/api/dashboard/product-stats',
         )
         return response
     },
 
-    async getInventoryStats(): Promise<InventoryStats> {
+    async getInventoryStats() {
         const response = await mainRepository.get<InventoryStats>(
             '/api/dashboard/inventory-stats',
         )

@@ -20,6 +20,8 @@ import ShopHomePage from './user/pages/home/page'
 import OrderDetail from './admin/pages/orders/order-detail'
 import ProductEdit from './admin/pages/products/components/product-edit'
 import AccountPage from './user/pages/account/account-page'
+import VNPayReturn from './user/pages/payment/vnpay-return'
+import CheckoutFailed from './user/pages/checkout/checkout-failed'
 const App = () => (
     <Routes>
         {/* Admin routes */}
@@ -40,11 +42,14 @@ const App = () => (
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
             <Route path="checkout/success" element={<CheckoutSuccess />} />
+            <Route path="checkout/failed" element={<CheckoutFailed />} />
+            {/* Private routes */}
             <Route path="account" element={<AccountPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="account/orders" element={<UserOrders />} />
         </Route>
-
+        {/* Payment routes */}
+        <Route path="/payment/vnpay-return" element={<VNPayReturn />} />
         {/* Auth routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />

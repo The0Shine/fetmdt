@@ -6,13 +6,14 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import ProductForm from './product-form'
 import { Product, ProductFormData } from '../../../../types/product'
+import { ICategory } from '@/types/category'
 
 interface ProductModalProps {
     isOpen: boolean
     onClose: () => void
     product: Product | null
     onSave: (product: Product) => void
-    categories: string[]
+    categories: ICategory[]
 }
 
 const ProductModal: React.FC<ProductModalProps> = ({

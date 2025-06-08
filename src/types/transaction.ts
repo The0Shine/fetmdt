@@ -37,8 +37,8 @@ export interface ITransaction {
         | string
     createdBy:
         | {
+              lastName: string
               _id: string
-              name: string
               email: string
           }
         | string
