@@ -18,11 +18,11 @@ export default function ShopFooter() {
                         <div className="mb-4 flex items-center">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600">
                                 <span className="text-xl font-semibold text-white">
-                                    T
+                                    S
                                 </span>
                             </div>
                             <span className="ml-2 text-2xl font-bold">
-                                TechZone
+                                S Shop
                             </span>
                         </div>
                         <p className="mb-4 text-gray-400">
@@ -119,14 +119,7 @@ export default function ShopFooter() {
                                     Giới thiệu
                                 </Link>
                             </li>
-                            <li>
-                                <Link
-                                    to="/contact"
-                                    className="text-gray-400 hover:text-white"
-                                >
-                                    Liên hệ
-                                </Link>
-                            </li>
+
                             <li>
                                 <Link
                                     to="/policy/shipping"

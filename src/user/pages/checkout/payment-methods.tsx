@@ -130,20 +130,6 @@ export default function PaymentMethods({
                                                     ),
                                                 )}
                                             </div>
-
-                                            {/* Additional info for VNPay */}
-                                            {method.id === 'vnpay' && (
-                                                <div className="ml-13 flex items-center gap-4 text-xs text-gray-500">
-                                                    <div className="flex items-center gap-1">
-                                                        <Shield className="h-3 w-3" />
-                                                        Bảo mật SSL
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        Xử lý tức thì
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </CardContent>

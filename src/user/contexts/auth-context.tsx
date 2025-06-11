@@ -17,7 +17,6 @@ interface AuthContextType {
         email: string,
         password: string,
     ) => Promise<boolean>
-    updateProfile: (userData: Partial<User>) => Promise<boolean>
     updatePassword: (
         oldPassword: string,
         newPassword: string,
@@ -154,30 +153,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     }
 
-    const updateProfile = async (userData: Partial<User>): Promise<boolean> => {
-        try {
-            const response = await mainRepository.put(
-                '/api/users/profile',
-                userData,
-            )
-
-            // Kiểm tra và ép kiểu response
-            if (
-                response &&
-                typeof response === 'object' &&
-                'success' in response &&
-                response
-            ) {
-                setUser((prev) => (prev ? { ...prev, ...userData } : null))
-                return true
-            }
-            return false
-        } catch (error) {
-            console.error('Profile update failed:', error)
-            return false
-        }
-    }
-
     const updatePassword = async (
         oldPassword: string,
         newPassword: string,
@@ -207,7 +182,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 login,
                 logout,
                 register,
-                updateProfile,
                 updatePassword,
             }}
         >

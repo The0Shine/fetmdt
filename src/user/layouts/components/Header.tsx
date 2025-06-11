@@ -43,11 +43,11 @@ export default function ShopHeader() {
                         <Link to="/" className="flex items-center">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
                                 <span className="font-semibold text-white">
-                                    T
+                                    S
                                 </span>
                             </div>
                             <span className="ml-2 text-xl font-semibold text-gray-800">
-                                TechZone
+                                S Shop
                             </span>
                         </Link>
                     </div>
@@ -71,12 +71,6 @@ export default function ShopHeader() {
                             className={`text-gray-600 hover:text-blue-600 ${isActive('/about') ? 'font-medium text-blue-600' : ''}`}
                         >
                             Giới thiệu
-                        </Link>
-                        <Link
-                            to="/contact"
-                            className={`text-gray-600 hover:text-blue-600 ${isActive('/contact') ? 'font-medium text-blue-600' : ''}`}
-                        >
-                            Liên hệ
                         </Link>
                     </nav>
 

@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useCart } from '../../contexts/cart-context'
-import { getCategories } from '../../../services/apiCategory.service'
+import {
+    getCategories,
+    getParentCategories,
+} from '../../../services/apiCategory.service'
 import { getProducts } from '../../../services/apiProduct.service'
 import CategoryGrid from './components/category-grid'
 import HeroBanner from './components/hero-banner'
@@ -46,11 +49,8 @@ export default function ShopHomePage() {
             try {
                 // Fetch danh mục từ API thật
                 try {
-                    const categoriesResponse = await getCategories()
-                    if (
-                        categoriesResponse?.success &&
-                        categoriesResponse.data
-                    ) {
+                    const categoriesResponse = await getParentCategories()
+                    if (categoriesResponse) {
                         setCategories(categoriesResponse.data)
                     }
                 } catch (err) {
@@ -222,7 +222,7 @@ export default function ShopHomePage() {
             {newProducts.length > 0 && (
                 <ProductSection
                     title="Sản phẩm mới"
-                    subtitle="Vừa ra mắt tại TechZone"
+                    subtitle="Vừa ra mắt tại S Shop"
                     products={newProducts}
                     viewAllLink="/shop?new=true"
                     onAddToCart={handleAddToCart}

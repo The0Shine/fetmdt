@@ -20,6 +20,8 @@ import {
     getProductById,
     getProducts,
 } from '../../../../services/apiProduct.service'
+import { mainRepository } from '@/utils/Repository'
+import { toast } from 'sonner'
 
 const ProductDetail: React.FC<{ productId: string }> = ({ productId }) => {
     const id = productId
@@ -124,7 +126,23 @@ const ProductDetail: React.FC<{ productId: string }> = ({ productId }) => {
             navigate('/cart')
         }
     }
+    const handleAddToWishlist = async () => {
+        if (!product) return
 
+        try {
+            // Gửi request đến server
+            const res = await mainRepository.post(
+                `/api/users/wishlist/${product._id}`, // endpoint phía backend
+                {},
+            )
+
+            toast.success(`Đã thêm "${product.name}" vào danh sách yêu thích`)
+            console.log('Wishlist response:', res.data)
+        } catch (error) {
+            console.error('Lỗi khi thêm vào wishlist:', error)
+            toast.error('Không thể thêm sản phẩm vào wishlist')
+        }
+    }
     // Display loading state
     if (isLoading) {
         return (
@@ -419,7 +437,10 @@ const ProductDetail: React.FC<{ productId: string }> = ({ productId }) => {
                                 Mua ngay
                             </button>
 
-                            <button className="rounded-md border border-gray-300 p-3 text-gray-500 hover:border-red-500 hover:text-red-500">
+                            <button
+                                onClick={handleAddToWishlist}
+                                className="rounded-md border border-gray-300 p-3 text-gray-500 hover:border-red-500 hover:text-red-500"
+                            >
                                 <Heart size={18} />
                             </button>
                         </div>

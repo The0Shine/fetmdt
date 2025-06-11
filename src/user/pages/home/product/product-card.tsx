@@ -60,7 +60,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     </div>
                 </Link>
 
-                {product.status === 'out-of-stock' && (
+                {product.quantity === 0 && (
                     <div className="bg-opacity-50 absolute inset-0 flex items-center justify-center bg-black">
                         <span className="rounded-full bg-red-500 px-3 py-1 text-sm font-medium text-white">
                             Hết hàng

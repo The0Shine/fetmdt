@@ -5,7 +5,7 @@ export const banners: Banner[] = [
         id: 1,
         title: 'iPhone 15 Pro Max',
         subtitle: 'Siêu phẩm mới nhất từ Apple với chip A17 Pro mạnh mẽ',
-        image: 'https://mir-s3-cdn-cf.behance.net/project_modules/max_3840_webp/34b5bf180145769.6505ae7623131.jpg',
+        image: 'https://www.invaderpc.com/wp-content/uploads/2024/01/Web-Banner-Invader-RTX40-Super-scaled.jpg',
         link: '/shop/12',
         position: 'main',
     },

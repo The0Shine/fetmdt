@@ -105,13 +105,6 @@ class ApiUserService {
         const response = await mainRepository.delete(`/api/users/${id}`)
         return response
     }
-
-    async resetPassword(id: string): Promise<{ message: string }> {
-        const response = await mainRepository.post(
-            `/api/users/${id}/reset-password`,
-        )
-        return response
-    }
 }
 
 export const apiUserService = new ApiUserService()

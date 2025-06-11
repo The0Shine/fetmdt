@@ -147,7 +147,11 @@ export class Repository {
         }
     }
 
-    public async post<T = any>(url: string, data?: any) {
+    public async post<T = any>(
+        url: string,
+        data?: any,
+        p0?: { headers: { 'Content-Type': string } },
+    ) {
         nProgress.start()
 
         try {
@@ -187,7 +191,7 @@ export class Repository {
         }
     }
 
-    public async delete<T>(url: string) {
+    public async delete<T>(url: string, p0: { data: { public_id: string } }) {
         nProgress.start()
 
         try {

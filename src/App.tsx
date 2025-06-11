@@ -22,6 +22,7 @@ import ProductEdit from './admin/pages/products/components/product-edit'
 import AccountPage from './user/pages/account/account-page'
 import VNPayReturn from './user/pages/payment/vnpay-return'
 import CheckoutFailed from './user/pages/checkout/checkout-failed'
+import WishlistPage from './user/pages/wishlist/wishlist-page'
 const App = () => (
     <Routes>
         {/* Admin routes */}
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="account" element={<AccountPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="account/orders" element={<UserOrders />} />
+            <Route path="wishlist" element={<WishlistPage />} />
         </Route>
         {/* Payment routes */}
         <Route path="/payment/vnpay-return" element={<VNPayReturn />} />

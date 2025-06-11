@@ -20,3 +20,9 @@ export const getMe = async () => {
     const res = await mainRepository.get('/api/auth/me')
     return res.data // nếu backend trả { data: user }
 }
+export const changePassword = async (payload: {
+    currentPassword: string
+    newPassword: string
+}) => {
+    return mainRepository.post(`/api/auth/change-password`, payload)
+}
