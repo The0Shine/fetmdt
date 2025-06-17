@@ -25,6 +25,12 @@ export interface OrderData {
     total: number
     paymentMethod: string
     note: string
+    refundInfo?: {
+        refundReason?: string
+        refundDate?: string
+        refundTransactionId?: string
+        notes?: string
+    }
 }
 
 // Thêm export interface cho API response
@@ -58,12 +64,35 @@ export interface Order {
     totalPrice: number
     isPaid: boolean
     paidAt?: string
-    status: 'pending' | 'processing' | 'completed' | 'cancelled'
+    status:
+        | 'pending'
+        | 'processing'
+        | 'completed'
+        | 'cancelled'
+        | 'refund_requested'
+        | 'refunded'
     updatedAt: string
     paymentResult?: {
         id: string
         status: string
         update_time: string
         email_address: string
+    }
+    refundInfo?: {
+        refundReason?: string
+        refundDate?: string
+        refundTransactionId?: string
+        notes?: string
+    }
+}
+
+export interface RefundRequest {
+    orderId: string
+    refundReason: string
+    notes?: string
+    bankInfo?: {
+        bankName: string
+        accountNumber: string
+        accountHolder: string
     }
 }

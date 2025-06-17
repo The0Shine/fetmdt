@@ -1,5 +1,5 @@
 export interface Product {
-    published: any
+    published: boolean
     _id: string
     name: string
     description: string

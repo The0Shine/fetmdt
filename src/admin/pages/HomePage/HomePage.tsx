@@ -51,16 +51,16 @@ export const HomePage = () => {
         )
     }
 
-    if (error) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-center">
-                    <p className="mb-4 text-red-500">Lỗi: {error}</p>
-                    <Button onClick={fetchDashboardData}>Thử lại</Button>
-                </div>
-            </div>
-        )
-    }
+    // if (error) {
+    //     return (
+    //         <div className="flex h-screen items-center justify-center">
+    //             <div className="text-center">
+    //                 <p className="mb-4 text-red-500">Lỗi: {error}</p>
+    //                 <Button onClick={fetchDashboardData}>Thử lại</Button>
+    //             </div>
+    //         </div>
+    //     )
+    // }
 
     if (!data) {
         return (
@@ -74,16 +74,6 @@ export const HomePage = () => {
         <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-                <div className="flex items-center space-x-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={fetchDashboardData}
-                    >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Làm mới
-                    </Button>
-                </div>
             </div>
 
             <Tabs defaultValue="overview" className="space-y-4">

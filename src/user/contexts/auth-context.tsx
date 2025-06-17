@@ -21,6 +21,7 @@ interface AuthContextType {
         oldPassword: string,
         newPassword: string,
     ) => Promise<boolean>
+    loading: boolean
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -30,25 +31,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
     const [user, setUser] = useState<User | null>(null)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(true) // Bắt đầu với loading = true
     const navigate = useNavigate()
 
     useEffect(() => {
-        const accessToken = localStorage.getItem('access_token')
-        if (!accessToken) {
-            setUser(null)
-            setIsAuthenticated(false)
-            setLoading(false)
-            return
-        }
+        const initializeAuth = async () => {
+            const accessToken = localStorage.getItem('access_token')
 
-        const fetchUser = async () => {
+            // Nếu không có token, set loading = false và return
+            if (!accessToken) {
+                setUser(null)
+                setIsAuthenticated(false)
+                setLoading(false)
+                return
+            }
+
             try {
+                // Thử lấy thông tin user với token hiện tại
                 const userData = await getMe()
+
                 if (userData) {
                     setUser(userData)
                     setIsAuthenticated(true)
                 } else {
+                    // Nếu không lấy được user data, clear tokens
                     setUser(null)
                     setIsAuthenticated(false)
                     localStorage.removeItem('access_token')
@@ -56,24 +62,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
             } catch (error) {
                 console.error('Error fetching user data:', error)
+
+                // Nếu có lỗi (token expired, invalid, etc.), clear tokens
                 setUser(null)
                 setIsAuthenticated(false)
                 localStorage.removeItem('access_token')
                 localStorage.removeItem('refresh_token')
+
+                // Có thể thử refresh token ở đây nếu cần
+                // await tryRefreshToken()
             } finally {
+                // Luôn set loading = false sau khi hoàn thành
                 setLoading(false)
             }
         }
 
-        fetchUser()
+        initializeAuth()
     }, [])
 
     const login = async (email: string, password: string): Promise<boolean> => {
         try {
+            setLoading(true) // Set loading khi đang login
+
             const response = await loginApi({ username: email, password })
             console.log('Login response:', response)
 
-            // Kiểm tra và ép kiểu response
             if (
                 response &&
                 typeof response === 'object' &&
@@ -91,10 +104,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 setUser(userData)
                 setIsAuthenticated(true)
 
-                if (userData?.role?.name === 'Super Admin') {
-                    navigate('/admin/')
-                } else {
+                if (userData?.role?.name === 'user') {
                     navigate('/')
+                } else {
+                    navigate('/admin/')
                 }
                 return true
             }
@@ -102,6 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (error) {
             console.error('Login failed:', error)
             return false
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -111,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.removeItem('user')
         setUser(null)
         setIsAuthenticated(false)
-        // navigate('/login', { replace: true })
+        navigate('/login', { replace: true })
     }
 
     const register = async (
@@ -120,18 +135,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password: string,
     ): Promise<boolean> => {
         try {
+            setLoading(true)
+
             const response = await mainRepository.post('/api/auth/register', {
                 name,
                 email,
                 password,
             })
 
-            // Kiểm tra và ép kiểu response
             if (
                 response &&
                 typeof response === 'object' &&
                 'success' in response &&
-                response &&
                 'data' in response
             ) {
                 const data = response.data as {
@@ -150,6 +165,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (error) {
             console.error('Registration failed:', error)
             return false
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -163,7 +180,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 newPassword,
             })
 
-            // Kiểm tra và ép kiểu response
             return (response &&
                 typeof response === 'object' &&
                 'success' in response &&
@@ -183,6 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 logout,
                 register,
                 updatePassword,
+                loading, // Đảm bảo loading được truyền vào context
             }}
         >
             {children}

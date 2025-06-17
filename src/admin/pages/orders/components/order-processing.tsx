@@ -6,12 +6,25 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { updateOrderToPaid } from '@/services/apiOrder.service'
 
 interface OrderProcessingProps {
     orderId: string
-    currentStatus: 'pending' | 'processing' | 'completed' | 'cancelled'
+    currentStatus:
+        | 'pending'
+        | 'processing'
+        | 'completed'
+        | 'cancelled'
+        | 'refund_requested'
+        | 'refunded'
     onStatusChange: (
-        status: 'pending' | 'processing' | 'completed' | 'cancelled',
+        status:
+            | 'pending'
+            | 'processing'
+            | 'completed'
+            | 'cancelled'
+            | 'refund_requested'
+            | 'refunded',
     ) => void
 }
 
@@ -29,10 +42,18 @@ export default function OrderProcessing({
     const [loading, setLoading] = useState(false)
 
     const updateOrderStatus = async (
-        status: 'pending' | 'processing' | 'completed' | 'cancelled',
+        status:
+            | 'pending'
+            | 'processing'
+            | 'completed'
+            | 'cancelled'
+            | 'refund_requested'
+            | 'refunded',
     ) => {
         if (status === currentStatus) return
-
+        if (status === 'completed') {
+            await updateOrderToPaid(orderId) // Gọi API cập nhật isPaid
+        }
         try {
             setLoading(true)
 
@@ -65,6 +86,8 @@ export default function OrderProcessing({
             processing: 'Đang xử lý',
             completed: 'Hoàn thành',
             cancelled: 'Đã hủy',
+            refund_requested: 'Yêu cầu hoàn tiền',
+            refunded: 'Đã hoàn tiền',
         }
         return statusMap[status as keyof typeof statusMap] || status
     }
@@ -75,6 +98,8 @@ export default function OrderProcessing({
             processing: { className: 'bg-blue-100 text-blue-700' },
             completed: { className: 'bg-green-100 text-green-700' },
             cancelled: { className: 'bg-red-100 text-red-700' },
+            refund_requested: { className: 'bg-purple-100 text-purple-700' },
+            refunded: { className: 'bg-teal-100 text-teal-700' },
         }
 
         const config = statusConfig[status as keyof typeof statusConfig]
@@ -110,7 +135,11 @@ export default function OrderProcessing({
         const currentIndex = statusOrder.indexOf(currentStatus)
         const stepIndex = statusOrder.indexOf(stepId)
 
-        if (currentStatus === 'cancelled') {
+        if (
+            currentStatus === 'cancelled' ||
+            currentStatus === 'refund_requested' ||
+            currentStatus === 'refunded'
+        ) {
             return 'cancelled'
         }
 
@@ -138,6 +167,8 @@ export default function OrderProcessing({
                             const canUpdate =
                                 !loading &&
                                 currentStatus !== 'cancelled' &&
+                                currentStatus !== 'refund_requested' &&
+                                currentStatus !== 'refunded' &&
                                 step.id !== currentStatus
 
                             return (
@@ -189,6 +220,72 @@ export default function OrderProcessing({
                             )
                         })}
 
+                        {/* Refund requested status */}
+                        <div className="relative">
+                            <div
+                                className={`absolute top-0 left-4 mt-1.5 -ml-2 h-4 w-4 rounded-full border-2 ${
+                                    currentStatus === 'refund_requested'
+                                        ? 'border-purple-500 bg-purple-500'
+                                        : 'border-gray-300 bg-white'
+                                }`}
+                            ></div>
+
+                            <div className="ml-10">
+                                <div className="flex items-center space-x-3">
+                                    <h3
+                                        className={`text-base font-semibold ${
+                                            currentStatus === 'refund_requested'
+                                                ? 'text-purple-600'
+                                                : 'text-gray-500'
+                                        }`}
+                                    >
+                                        Yêu cầu hoàn tiền
+                                    </h3>
+                                    {currentStatus === 'refund_requested' && (
+                                        <Badge className="bg-purple-100 text-purple-700">
+                                            Hiện tại
+                                        </Badge>
+                                    )}
+                                </div>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Khách hàng đã yêu cầu hoàn tiền
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Refunded status */}
+                        <div className="relative">
+                            <div
+                                className={`absolute top-0 left-4 mt-1.5 -ml-2 h-4 w-4 rounded-full border-2 ${
+                                    currentStatus === 'refunded'
+                                        ? 'border-teal-500 bg-teal-500'
+                                        : 'border-gray-300 bg-white'
+                                }`}
+                            ></div>
+
+                            <div className="ml-10">
+                                <div className="flex items-center space-x-3">
+                                    <h3
+                                        className={`text-base font-semibold ${
+                                            currentStatus === 'refunded'
+                                                ? 'text-teal-600'
+                                                : 'text-gray-500'
+                                        }`}
+                                    >
+                                        Đã hoàn tiền
+                                    </h3>
+                                    {currentStatus === 'refunded' && (
+                                        <Badge className="bg-teal-100 text-teal-700">
+                                            Hiện tại
+                                        </Badge>
+                                    )}
+                                </div>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Đơn hàng đã được hoàn tiền
+                                </p>
+                            </div>
+                        </div>
+
                         {/* Cancelled status */}
                         <div className="relative">
                             <div
@@ -221,7 +318,9 @@ export default function OrderProcessing({
                                 </p>
 
                                 {currentStatus !== 'cancelled' &&
-                                    currentStatus !== 'completed' && (
+                                    currentStatus !== 'completed' &&
+                                    currentStatus !== 'refund_requested' &&
+                                    currentStatus !== 'refunded' && (
                                         <Button
                                             onClick={() =>
                                                 updateOrderStatus('cancelled')

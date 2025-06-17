@@ -32,14 +32,20 @@ interface ProductQueryParams {
     new?: boolean
     minPrice?: number
     maxPrice?: number
+    published?: boolean
 }
 
 // Lấy danh sách sản phẩm với các tùy chọn lọc và phân trang
 export const getProducts = async (params: ProductQueryParams = {}) => {
+    // Mặc định chỉ lấy sản phẩm đã được xuất bản
+    const defaultParams = {
+        ...params,
+    }
+
     // Chuyển đổi params thành query string
     const queryParams = new URLSearchParams()
 
-    Object.entries(params).forEach(([key, value]) => {
+    Object.entries(defaultParams).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
             queryParams.append(key, String(value))
         }
@@ -51,8 +57,32 @@ export const getProducts = async (params: ProductQueryParams = {}) => {
     return await mainRepository.get<ProductsResponse>(url)
 }
 
-// Lấy sản phẩm theo ID
+// Lấy tất cả sản phẩm (bao gồm cả chưa xuất bản) - chỉ dành cho admin
+export const getProductsAdmin = async (params: ProductQueryParams = {}) => {
+    // Chuyển đổi params thành query string
+    const queryParams = new URLSearchParams()
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            queryParams.append(key, String(value))
+        }
+    })
+
+    const queryString = queryParams.toString()
+    const url = queryString
+        ? `/api/products/admin?${queryString}`
+        : '/api/products/admin'
+
+    return await mainRepository.get<ProductsResponse>(url)
+}
+
+// Lấy sản phẩm theo ID (chỉ sản phẩm đã xuất bản)
 export const getProductById = async (id: string) => {
+    return await mainRepository.get<ProductResponse>(`/api/products/${id}`)
+}
+
+// Lấy sản phẩm theo ID (bao gồm cả chưa xuất bản) - chỉ dành cho admin
+export const getProductByIdAdmin = async (id: string) => {
     return await mainRepository.get<ProductResponse>(`/api/products/${id}`)
 }
 

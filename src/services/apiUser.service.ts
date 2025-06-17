@@ -28,7 +28,11 @@ export interface CreateUserRequest {
     role?: string
     isActive?: boolean
 }
-
+export interface ResetPasswordRequest {
+    userId: string
+    newPassword: string
+    confirmPassword: string
+}
 export interface UpdateUserRequest {
     firstName?: string
     lastName?: string
@@ -103,6 +107,15 @@ class ApiUserService {
 
     async deleteUser(id: string): Promise<{ message: string }> {
         const response = await mainRepository.delete(`/api/users/${id}`)
+        return response
+    }
+    async resetPassword(id: string): Promise<{ message: string }> {
+        const response = await mainRepository.post(
+            `/api/users/${id}/reset-password`,
+            {
+                newPassword: '123456',
+            },
+        )
         return response
     }
 }

@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useCart } from '../../contexts/cart-context'
-import {
-    getCategories,
-    getParentCategories,
-} from '../../../services/apiCategory.service'
+import { getParentCategories } from '../../../services/apiCategory.service'
 import { getProducts } from '../../../services/apiProduct.service'
 import CategoryGrid from './components/category-grid'
 import HeroBanner from './components/hero-banner'
@@ -57,10 +54,11 @@ export default function ShopHomePage() {
                     console.error('Error fetching categories:', err)
                 }
 
-                // Fetch sản phẩm nổi bật từ API thật
+                // Fetch sản phẩm nổi bật từ API thật (chỉ sản phẩm đã xuất bản)
                 try {
                     const featuredResponse = await getProducts({
                         featured: true,
+                        published: true,
                         limit: 8,
                         page: 1,
                     })
@@ -71,10 +69,11 @@ export default function ShopHomePage() {
                     console.error('Error fetching featured products:', err)
                 }
 
-                // Fetch sản phẩm hot từ API thật
+                // Fetch sản phẩm hot từ API thật (chỉ sản phẩm đã xuất bản)
                 try {
                     const hotResponse = await getProducts({
                         hot: true,
+                        published: true,
                         limit: 8,
                         page: 1,
                     })
@@ -85,10 +84,11 @@ export default function ShopHomePage() {
                     console.error('Error fetching hot products:', err)
                 }
 
-                // Fetch sản phẩm mới từ API thật
+                // Fetch sản phẩm mới từ API thật (chỉ sản phẩm đã xuất bản)
                 try {
                     const newResponse = await getProducts({
                         new: true,
+                        published: true,
                         limit: 8,
                         page: 1,
                     })
@@ -99,10 +99,11 @@ export default function ShopHomePage() {
                     console.error('Error fetching new products:', err)
                 }
 
-                // Fetch sản phẩm đề xuất từ API thật
+                // Fetch sản phẩm đề xuất từ API thật (chỉ sản phẩm đã xuất bản)
                 try {
                     const recommendedResponse = await getProducts({
                         recommended: true,
+                        published: true,
                         limit: 8,
                         page: 1,
                     })

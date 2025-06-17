@@ -28,11 +28,13 @@ interface CategoryModalProps {
     category: ICategory | null
     onSave: (category: ICategory) => void
     parentCategories: ICategory[]
+    allCategories: ICategory[]
 }
 
 export default function CategoryManagement() {
     const [categories, setCategories] = useState<ICategory[]>([])
     const [parentCategories, setParentCategories] = useState<ICategory[]>([])
+    const [allCategories, setAllCategories] = useState<ICategory[]>([])
     const [searchTerm, setSearchTerm] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<ICategory | null>(
@@ -47,6 +49,48 @@ export default function CategoryManagement() {
         Record<string, ICategory[]>
     >({})
     const [currentPage, setCurrentPage] = useState(1)
+    const [colorMap, setColorMap] = useState<Record<string, string>>({})
+
+    // Tạo màu ổn định cho danh mục dựa trên ID
+    const getStableColor = (categoryId: string) => {
+        if (colorMap[categoryId]) {
+            return colorMap[categoryId]
+        }
+
+        const colors = [
+            'bg-blue-100',
+            'bg-green-100',
+            'bg-red-100',
+            'bg-yellow-100',
+            'bg-purple-100',
+            'bg-pink-100',
+            'bg-indigo-100',
+            'bg-teal-100',
+            'bg-orange-100',
+            'bg-amber-100',
+            'bg-lime-100',
+            'bg-emerald-100',
+            'bg-cyan-100',
+            'bg-gray-100',
+        ]
+
+        // Sử dụng hash của categoryId để chọn màu ổn định
+        let hash = 0
+        for (let i = 0; i < categoryId.length; i++) {
+            const char = categoryId.charCodeAt(i)
+            hash = (hash << 5) - hash + char
+            hash = hash & hash // Convert to 32bit integer
+        }
+        const colorIndex = Math.abs(hash) % colors.length
+        const selectedColor = colors[colorIndex]
+
+        setColorMap((prev) => ({
+            ...prev,
+            [categoryId]: selectedColor,
+        }))
+
+        return selectedColor
+    }
 
     // Tải danh sách danh mục
     const loadCategories = async () => {
@@ -65,8 +109,19 @@ export default function CategoryManagement() {
                 parent: null,
             })
 
-            if (allCategoriesResponse && parentCategoriesResponse) {
+            // Tải tất cả danh mục để sử dụng trong modal
+            const allCategoriesForModal = await getCategories({
+                limit: 1000, // Lấy tất cả để hiển thị trong modal
+            })
+
+            if (
+                allCategoriesResponse &&
+                parentCategoriesResponse &&
+                allCategoriesForModal
+            ) {
                 setCategories(allCategoriesResponse.data)
+                setAllCategories(allCategoriesForModal.data)
+
                 // Lọc danh mục cha từ response (những category không có parent)
                 const parentCats = parentCategoriesResponse.data.filter(
                     (cat) => !cat.parent,
@@ -180,27 +235,6 @@ export default function CategoryManagement() {
         }
     }
 
-    // Tạo màu ngẫu nhiên cho danh mục
-    const getRandomColor = () => {
-        const colors = [
-            'bg-blue-100',
-            'bg-green-100',
-            'bg-red-100',
-            'bg-yellow-100',
-            'bg-purple-100',
-            'bg-pink-100',
-            'bg-indigo-100',
-            'bg-teal-100',
-            'bg-orange-100',
-            'bg-amber-100',
-            'bg-lime-100',
-            'bg-emerald-100',
-            'bg-cyan-100',
-            'bg-gray-100',
-        ]
-        return colors[Math.floor(Math.random() * colors.length)]
-    }
-
     // Xử lý mở rộng/thu gọn danh mục
     const toggleCategoryExpand = (categoryId: string) => {
         setExpandedCategories((prev) => ({
@@ -285,7 +319,7 @@ export default function CategoryManagement() {
                                 return (
                                     <div
                                         key={category._id}
-                                        className={`${getRandomColor()} relative overflow-hidden rounded-lg border border-gray-200 p-4`}
+                                        className={`${getStableColor(category._id)} relative overflow-hidden rounded-lg border border-gray-200 p-4`}
                                     >
                                         <div className="mb-2 flex items-start justify-between">
                                             <div className="flex items-center">
@@ -460,6 +494,7 @@ export default function CategoryManagement() {
                     category={editingCategory}
                     onSave={handleSaveCategory}
                     parentCategories={parentCategories}
+                    allCategories={allCategories}
                 />
             )}
         </div>
@@ -472,6 +507,7 @@ function CategoryModal({
     category,
     onSave,
     parentCategories,
+    allCategories,
 }: CategoryModalProps) {
     const [formData, setFormData] = useState<Partial<ICategory>>(
         category || {
@@ -484,10 +520,36 @@ function CategoryModal({
     )
     const [formError, setFormError] = useState<string | null>(null)
 
+    // Tìm tên danh mục cha
+    const getParentCategoryName = (parentId: string | undefined) => {
+        if (!parentId) return ''
+        const parentCategory = allCategories.find((cat) => cat._id === parentId)
+        return parentCategory ? parentCategory.name : ''
+    }
+
     // Reset form khi category thay đổi
     useEffect(() => {
         if (category) {
-            setFormData(category)
+            console.log('Editing category:', category)
+
+            // Xử lý parent - có thể là object hoặc string
+            let parentId = undefined
+            if (category.parent) {
+                if (
+                    typeof category.parent === 'object' &&
+                    category.parent._id
+                ) {
+                    parentId = category.parent._id
+                } else if (typeof category.parent === 'string') {
+                    parentId = category.parent
+                }
+            }
+
+            setFormData({
+                ...category,
+                parent: parentId,
+            })
+            console.log('Form data set:', { ...category, parent: parentId })
         } else {
             setFormData({
                 name: '',
@@ -498,7 +560,7 @@ function CategoryModal({
             })
         }
         setFormError(null)
-    }, [category])
+    }, [category, allCategories])
 
     const handleChange = (
         e: React.ChangeEvent<
@@ -646,7 +708,7 @@ function CategoryModal({
                             <select
                                 id="parent"
                                 name="parent"
-                                value={formData.parent?.toString() || ''}
+                                value={formData.parent || ''}
                                 onChange={handleChange}
                                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             >
@@ -666,9 +728,13 @@ function CategoryModal({
                                         </option>
                                     ))}
                             </select>
-                            <p className="mt-1 text-xs text-gray-500">
-                                Để trống nếu đây là danh mục gốc
-                            </p>
+
+                            {formData.parent && (
+                                <p className="mt-1 text-xs text-blue-600">
+                                    Danh mục cha hiện tại:{' '}
+                                    {getParentCategoryName(formData.parent)}
+                                </p>
+                            )}
                         </div>
                     </div>
 

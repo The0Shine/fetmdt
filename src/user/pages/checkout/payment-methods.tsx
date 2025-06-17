@@ -189,12 +189,6 @@ export default function PaymentMethods({
             </Button>
 
             {/* Security notice */}
-            <div className="text-center text-xs text-gray-500">
-                <div className="flex items-center justify-center gap-1">
-                    <Shield className="h-3 w-3" />
-                    Thông tin của bạn được bảo mật và mã hóa
-                </div>
-            </div>
         </div>
     )
 }

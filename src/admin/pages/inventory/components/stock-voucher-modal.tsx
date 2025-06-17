@@ -59,7 +59,7 @@ export default function StockVoucherModal({
         reason: voucher?.reason || '',
         items: voucher?.items || [],
         notes: voucher?.notes || '',
-        status: 'approved',
+        // status: 'approved',
     })
 
     // State cho việc tìm kiếm và chọn sản phẩm

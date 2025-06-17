@@ -95,7 +95,6 @@ export default function UserManagement() {
             setTotalRows(response.meta.total)
         } catch (error) {
             console.error('Error fetching users:', error)
-            toast.error('Không thể tải danh sách người dùng')
         } finally {
             setLoading(false)
         }
@@ -109,10 +108,7 @@ export default function UserManagement() {
                 limit: 100,
             })
             setRoles(response.data)
-        } catch (error) {
-            console.error('Error fetching roles:', error)
-            toast.error('Không thể tải danh sách vai trò')
-        }
+        } catch (error) {}
     }
 
     useEffect(() => {

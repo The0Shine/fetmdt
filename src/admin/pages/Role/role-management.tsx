@@ -92,8 +92,6 @@ export default function RoleManagement() {
             setRoles(response.data as ExtendedRoleResponse[])
             setTotalRows(response.meta.total)
         } catch (error) {
-            console.error('Error fetching roles:', error)
-            toast.error('Không thể tải danh sách vai trò')
         } finally {
             setLoading(false)
         }
@@ -106,7 +104,6 @@ export default function RoleManagement() {
             setPermissions(response.data)
         } catch (error) {
             console.error('Error fetching permissions:', error)
-            toast.error('Không thể tải danh sách quyền')
         }
     }
 
@@ -557,6 +554,7 @@ function RoleModal({
         'orders.update_status': 'Cập nhật trạng thái',
 
         // Stock
+        'stock.view': 'Xem phiếu kho',
         'stock.create': 'Tạo phiếu kho',
         'stock.edit': 'Sửa phiếu kho',
         'stock.delete': 'Xóa phiếu kho',
@@ -580,8 +578,8 @@ function RoleModal({
         'roles.edit': 'Sửa vai trò',
         'roles.delete': 'Xóa vai trò',
 
-        // Admin
-        'admin.all': 'Toàn quyền admin',
+        // // Admin
+        // 'admin.all': 'Toàn quyền admin',
     }
 
     return (

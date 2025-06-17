@@ -25,13 +25,19 @@ import CheckoutFailed from './user/pages/checkout/checkout-failed'
 import WishlistPage from './user/pages/wishlist/wishlist-page'
 const App = () => (
     <Routes>
-        {/* Admin routes */}
-        <Route path="/admin" element={<MainLayout />}>
-            {adminRoutes.map(({ href, component: Component }, index) => (
-                <Route key={index} path={href} element={<Component />} />
-            ))}
-            <Route path="orders/:orderId" element={<OrderDetail />} />
-            <Route path="products/edit/:id" element={<ProductEdit />} />
+        {/* Auth routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
+
+        {/* Admin routes (Private) */}
+        <Route path="/admin" element={<PrivateRoute />}>
+            <Route element={<MainLayout />}>
+                {adminRoutes.map(({ href, component: Component }, index) => (
+                    <Route key={index} path={href} element={<Component />} />
+                ))}
+                <Route path="orders/:orderId" element={<OrderDetail />} />
+                <Route path="products/edit/:id" element={<ProductEdit />} />
+            </Route>
         </Route>
 
         {/* User routes */}
@@ -40,21 +46,22 @@ const App = () => (
             <Route path="shop" element={<ShopPage />} />
             <Route path="shop/category/:category" element={<CategoryPage />} />
             <Route path="shop/product/:id" element={<ProductDetail />} />
-            <Route path="cart" element={<CartPage />} />
-            <Route path="checkout" element={<CheckoutPage />} />
-            <Route path="checkout/success" element={<CheckoutSuccess />} />
-            <Route path="checkout/failed" element={<CheckoutFailed />} />
-            {/* Private routes */}
-            <Route path="account" element={<AccountPage />} />
             <Route path="about" element={<AboutPage />} />
-            <Route path="account/orders" element={<UserOrders />} />
-            <Route path="wishlist" element={<WishlistPage />} />
+
+            {/* User protected routes */}
+            <Route element={<PrivateRoute />}>
+                <Route path="account" element={<AccountPage />} />
+                <Route path="account/orders" element={<UserOrders />} />
+                <Route path="wishlist" element={<WishlistPage />} />
+                <Route path="cart" element={<CartPage />} />
+                <Route path="checkout" element={<CheckoutPage />} />
+                <Route path="checkout/success" element={<CheckoutSuccess />} />
+                <Route path="checkout/failed" element={<CheckoutFailed />} />
+            </Route>
         </Route>
+
         {/* Payment routes */}
         <Route path="/payment/vnpay-return" element={<VNPayReturn />} />
-        {/* Auth routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<SignUp />} />
     </Routes>
 )
 

@@ -14,7 +14,15 @@ interface OrderStatusChartProps {
     data: DashboardOverview['charts']['orderStatus']
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
+const COLORS = [
+    '#0088FE',
+    '#00C49F',
+    '#FFBB28',
+    '#FF8042',
+    '#8884D8',
+    '#FF6347',
+    '#FF4500',
+]
 
 const getStatusText = (status: string) => {
     switch (status) {
@@ -26,6 +34,10 @@ const getStatusText = (status: string) => {
             return 'Đang xử lý'
         case 'cancelled':
             return 'Đã hủy'
+        case 'refund_requested':
+            return 'Yêu cầu hoàn tiền'
+        case 'refunded':
+            return 'Đã hoàn tiền'
         default:
             return status
     }

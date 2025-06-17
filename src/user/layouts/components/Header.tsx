@@ -75,7 +75,7 @@ export default function ShopHeader() {
                     </nav>
 
                     <div className="flex items-center space-x-4">
-                        <form
+                        {/* <form
                             onSubmit={handleSearch}
                             className="relative hidden items-center md:flex"
                         >
@@ -90,7 +90,7 @@ export default function ShopHeader() {
                                 size={18}
                                 className="absolute left-3 text-gray-400"
                             />
-                        </form>
+                        </form> */}
 
                         <Link
                             to="/wishlist"

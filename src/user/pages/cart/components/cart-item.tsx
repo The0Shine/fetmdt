@@ -148,12 +148,9 @@ const CartItem = memo(function CartItem({
                         </button>
                         <input
                             type="number"
-                            min="1"
                             value={quantity}
-                            onChange={handleInputChange}
-                            onBlur={() => handleQuantityChange(quantity)}
-                            className="h-8 w-12 border-y border-gray-300 bg-white px-2 text-center text-sm focus:outline-none"
-                            disabled={isUpdating}
+                            readOnly
+                            className="h-8 w-12 border-y border-gray-300 bg-white px-2 text-center text-sm"
                         />
                         <button
                             type="button"

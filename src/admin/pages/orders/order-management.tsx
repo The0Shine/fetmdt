@@ -7,10 +7,11 @@ import {
     Download,
     MoreVertical,
     Eye,
-    CreditCard,
+    CheckCircle,
+    XCircle,
+    Loader2,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { mainRepository } from '../../../utils/Repository'
 import { toast } from 'sonner'
 import {
     Table,
@@ -38,16 +39,234 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+    getOrders,
+    approveRefund,
+    rejectRefund,
+} from '@/services/apiOrder.service'
+
+// Hàm chuyển đổi mã lý do hoàn tiền sang văn bản hiển thị
+const getRefundReasonText = (reason: string): string => {
+    const reasonMap: Record<string, string> = {
+        damaged: 'Sản phẩm bị hư hỏng',
+        wrong_item: 'Sản phẩm không đúng mô tả',
+        size_issue: 'Vấn đề về kích thước',
+        quality_issue: 'Chất lượng không đạt yêu cầu',
+        other: 'Lý do khác',
+    }
+
+    return reasonMap[reason] || reason
+}
 
 // Định nghĩa kiểu dữ liệu cho đơn hàng
 interface Order {
-    id: number
+    id: string
     orderNumber: string
     date: string
     customer: string
     total: number
-    status: 'pending' | 'processing' | 'completed' | 'cancelled'
+    status:
+        | 'pending'
+        | 'processing'
+        | 'completed'
+        | 'cancelled'
+        | 'refund_requested'
+        | 'refunded'
     paymentStatus: 'paid' | 'unpaid'
+    refundInfo?: {
+        refundReason?: string
+        refundDate?: string
+        refundTransactionId?: string
+        notes?: string
+    }
+}
+
+// Thêm modal xác nhận duyệt hoàn tiền
+const RefundApprovalModal = ({
+    isOpen,
+    onClose,
+    onApprove,
+    order,
+    isSubmitting,
+}: {
+    isOpen: boolean
+    onClose: () => void
+    onApprove: (
+        orderId: string,
+        notes: string,
+        createImportVoucher: boolean,
+    ) => void
+    order: Order | null
+    isSubmitting: boolean
+}) => {
+    const [notes, setNotes] = useState('')
+    const [createImportVoucher, setCreateImportVoucher] = useState(true)
+
+    if (!isOpen || !order) return null
+
+    return (
+        <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+            <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                <h2 className="mb-4 text-xl font-semibold">
+                    Duyệt yêu cầu hoàn tiền
+                </h2>
+                <p className="mb-4 text-gray-600">
+                    Xác nhận duyệt yêu cầu hoàn tiền cho đơn hàng #
+                    {order.orderNumber}
+                </p>
+
+                {order.refundInfo?.refundReason && (
+                    <div className="mb-4 rounded-md bg-amber-50 p-3 text-amber-800">
+                        <p className="font-medium">Lý do yêu cầu hoàn tiền:</p>
+                        <p>
+                            {getRefundReasonText(order.refundInfo.refundReason)}
+                        </p>
+                    </div>
+                )}
+
+                <div className="mb-4">
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Ghi chú
+                    </label>
+                    <textarea
+                        className="w-full rounded-md border border-gray-300 p-2 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                        rows={3}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Nhập ghi chú (không bắt buộc)..."
+                    />
+                </div>
+
+                <div className="mb-4 flex items-center">
+                    <input
+                        type="checkbox"
+                        id="createImportVoucher"
+                        checked={createImportVoucher}
+                        onChange={(e) =>
+                            setCreateImportVoucher(e.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <label
+                        htmlFor="createImportVoucher"
+                        className="ml-2 block text-sm text-gray-700"
+                    >
+                        Tạo phiếu nhập kho
+                    </label>
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                    <button
+                        onClick={onClose}
+                        className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                        disabled={isSubmitting}
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        onClick={() =>
+                            onApprove(order.id, notes, createImportVoucher)
+                        }
+                        disabled={isSubmitting}
+                        className="rounded-md bg-[oklch(0.7_0.1_213.13)] px-4 py-2 text-white hover:bg-[oklch(0.65_0.1_213.13)] disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                                Đang xử lý...
+                            </>
+                        ) : (
+                            'Xác nhận duyệt'
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// Thêm modal xác nhận từ chối hoàn tiền
+const RefundRejectionModal = ({
+    isOpen,
+    onClose,
+    onReject,
+    order,
+    isSubmitting,
+}: {
+    isOpen: boolean
+    onClose: () => void
+    onReject: (orderId: string, notes: string) => void
+    order: Order | null
+    isSubmitting: boolean
+}) => {
+    const [notes, setNotes] = useState('')
+
+    if (!isOpen || !order) return null
+
+    return (
+        <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+            <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                <h2 className="mb-4 text-xl font-semibold text-red-600">
+                    Từ chối yêu cầu hoàn tiền
+                </h2>
+                <p className="mb-4 text-gray-600">
+                    Xác nhận từ chối yêu cầu hoàn tiền cho đơn hàng #
+                    {order.orderNumber}
+                </p>
+
+                {order.refundInfo?.refundReason && (
+                    <div className="mb-4 rounded-md bg-amber-50 p-3 text-amber-800">
+                        <p className="font-medium">Lý do yêu cầu hoàn tiền:</p>
+                        <p>
+                            {getRefundReasonText(order.refundInfo.refundReason)}
+                        </p>
+                    </div>
+                )}
+
+                <div className="mb-4">
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Lý do từ chối <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        className="w-full rounded-md border border-gray-300 p-2 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                        rows={3}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Nhập lý do từ chối yêu cầu hoàn tiền..."
+                        required
+                    />
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                    <button
+                        onClick={onClose}
+                        className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                        disabled={isSubmitting}
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (notes.trim()) {
+                                onReject(order.id, notes)
+                            }
+                        }}
+                        disabled={!notes.trim() || isSubmitting}
+                        className="rounded-md bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                                Đang xử lý...
+                            </>
+                        ) : (
+                            'Xác nhận từ chối'
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
 }
 
 export default function OrderManagement() {
@@ -60,21 +279,30 @@ export default function OrderManagement() {
     const [error, setError] = useState<string | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage] = useState(10)
-    const [updatingPayment, setUpdatingPayment] = useState<string | null>(null)
+
+    // Thêm state cho modal xử lý hoàn tiền
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+    const [isRefundApprovalModalOpen, setIsRefundApprovalModalOpen] =
+        useState(false)
+    const [isRefundRejectionModalOpen, setIsRefundRejectionModalOpen] =
+        useState(false)
+    const [isProcessingRefund, setIsProcessingRefund] = useState(false)
 
     useEffect(() => {
         const fetchOrders = async () => {
             try {
                 setLoading(true)
-                const response = await mainRepository.get('/api/orders')
+                const response = await getOrders()
 
                 if (response) {
-                    console.log('Fetched orders:', response.data)
+                    console.log('Fetched orders:', response)
 
-                    const formattedOrders = response.data.map((order: any) => {
+                    const formattedOrders = response.map((order: any) => {
                         return {
                             id: order._id,
-                            orderNumber: order.orderNumber,
+                            orderNumber:
+                                order.orderNumber ||
+                                `ORD-${order._id.slice(-6)}`,
                             date: order.createdAt
                                 ? new Date(order.createdAt).toLocaleString(
                                       'vi-VN',
@@ -84,6 +312,7 @@ export default function OrderManagement() {
                             total: order.totalPrice,
                             status: order.status,
                             paymentStatus: order.isPaid ? 'paid' : 'unpaid',
+                            refundInfo: order.refundInfo,
                         }
                     })
 
@@ -94,8 +323,6 @@ export default function OrderManagement() {
                 }
             } catch (err) {
                 console.error('Error fetching orders:', err)
-                setError('Đã xảy ra lỗi khi tải danh sách đơn hàng')
-                toast.error('Đã xảy ra lỗi khi tải danh sách đơn hàng')
             } finally {
                 setLoading(false)
             }
@@ -104,40 +331,91 @@ export default function OrderManagement() {
         fetchOrders()
     }, [])
 
-    // Cập nhật trạng thái thanh toán
-    const updatePaymentStatus = async (
+    // Thêm hàm xử lý duyệt hoàn tiền
+    const handleApproveRefund = async (
         orderId: string,
-        newPaymentStatus: 'paid' | 'unpaid',
+        notes: string,
+        createImportVoucher: boolean,
     ) => {
         try {
-            setUpdatingPayment(orderId)
+            setIsProcessingRefund(true)
 
-            const response = await mainRepository.put(
-                `/api/orders/${orderId}/pay`,
-                {
-                    isPaid: newPaymentStatus === 'paid',
-                },
+            // Tìm đơn hàng để lấy số tiền hoàn
+            const order = orders.find((o) => o.id === orderId)
+            if (!order) {
+                toast.error('Không tìm thấy thông tin đơn hàng')
+                return
+            }
+
+            const response = await approveRefund(
+                orderId,
+                'bank_transfer', // Phương thức hoàn tiền mặc định
+                order.total,
+                notes,
+                createImportVoucher,
             )
 
             if (response) {
+                // Cập nhật trạng thái đơn hàng trong state
                 setOrders((prevOrders) =>
                     prevOrders.map((order) =>
-                        order.id.toString() === orderId
-                            ? { ...order, paymentStatus: newPaymentStatus }
+                        order.id === orderId
+                            ? {
+                                  ...order,
+                                  status: 'refunded',
+                                  refundInfo: {
+                                      ...order.refundInfo,
+                                      notes: notes || order.refundInfo?.notes,
+                                      refundDate: new Date().toISOString(),
+                                  },
+                              }
                             : order,
                     ),
                 )
-                toast.success(
-                    `Đã cập nhật trạng thái thanh toán thành ${newPaymentStatus === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}`,
-                )
-            } else {
-                toast.error('Không thể cập nhật trạng thái thanh toán')
+
+                toast.success('Đã duyệt yêu cầu hoàn tiền thành công')
+                setIsRefundApprovalModalOpen(false)
             }
         } catch (error) {
-            console.error('Error updating payment status:', error)
-            toast.error('Đã xảy ra lỗi khi cập nhật trạng thái thanh toán')
+            console.error('Error approving refund:', error)
+            toast.error('Đã xảy ra lỗi khi duyệt yêu cầu hoàn tiền')
         } finally {
-            setUpdatingPayment(null)
+            setIsProcessingRefund(false)
+        }
+    }
+
+    // Thêm hàm xử lý từ chối hoàn tiền
+    const handleRejectRefund = async (orderId: string, notes: string) => {
+        try {
+            setIsProcessingRefund(true)
+
+            const response = await rejectRefund(orderId, notes)
+
+            if (response) {
+                // Cập nhật trạng thái đơn hàng trong state
+                setOrders((prevOrders) =>
+                    prevOrders.map((order) =>
+                        order.id === orderId
+                            ? {
+                                  ...order,
+                                  status: 'completed', // Trả về trạng thái hoàn thành
+                                  refundInfo: {
+                                      ...order.refundInfo,
+                                      notes: `Yêu cầu hoàn tiền bị từ chối: ${notes}`,
+                                  },
+                              }
+                            : order,
+                    ),
+                )
+
+                toast.success('Đã từ chối yêu cầu hoàn tiền')
+                setIsRefundRejectionModalOpen(false)
+            }
+        } catch (error) {
+            console.error('Error rejecting refund:', error)
+            toast.error('Đã xảy ra lỗi khi từ chối yêu cầu hoàn tiền')
+        } finally {
+            setIsProcessingRefund(false)
         }
     }
 
@@ -177,7 +455,7 @@ export default function OrderManagement() {
     // Handle row selection
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
-            setSelectedRows(currentData.map((order) => order.id.toString()))
+            setSelectedRows(currentData.map((order) => order.id))
         } else {
             setSelectedRows([])
         }
@@ -213,9 +491,21 @@ export default function OrderManagement() {
                 text: 'Đã hủy',
                 className: 'bg-red-100 text-red-700',
             },
+            refund_requested: {
+                variant: 'default' as const,
+                text: 'Yêu cầu hoàn tiền',
+                className: 'bg-purple-100 text-purple-700',
+            },
+            refunded: {
+                variant: 'default' as const,
+                text: 'Đã hoàn tiền',
+                className: 'bg-teal-100 text-teal-700',
+            },
         }
 
-        const config = statusConfig[status as keyof typeof statusConfig]
+        const config =
+            statusConfig[status as keyof typeof statusConfig] ||
+            statusConfig.pending
         return <Badge className={config.className}>{config.text}</Badge>
     }
 
@@ -244,13 +534,6 @@ export default function OrderManagement() {
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle>Danh sách đơn hàng</CardTitle>
-                        <div className="flex space-x-2">
-                            <Button variant="outline">
-                                <Download className="mr-2 h-4 w-4" />
-                                Xuất Excel
-                            </Button>
-                            <Button>In đơn hàng</Button>
-                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -293,6 +576,12 @@ export default function OrderManagement() {
                                         <SelectItem value="cancelled">
                                             Đã hủy
                                         </SelectItem>
+                                        <SelectItem value="refund_requested">
+                                            Yêu cầu hoàn tiền
+                                        </SelectItem>
+                                        <SelectItem value="refunded">
+                                            Đã hoàn tiền
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -320,10 +609,7 @@ export default function OrderManagement() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button variant="outline">
-                                <Calendar className="mr-2 h-4 w-4" />
-                                Thời gian
-                            </Button>
+
                             <Button variant="outline">
                                 <Filter className="mr-2 h-4 w-4" />
                                 Lọc khác
@@ -384,13 +670,13 @@ export default function OrderManagement() {
                                                     <TableCell>
                                                         <Checkbox
                                                             checked={selectedRows.includes(
-                                                                order.id.toString(),
+                                                                order.id,
                                                             )}
                                                             onCheckedChange={(
                                                                 checked,
                                                             ) =>
                                                                 handleSelectRow(
-                                                                    order.id.toString(),
+                                                                    order.id,
                                                                     checked as boolean,
                                                                 )
                                                             }
@@ -415,75 +701,82 @@ export default function OrderManagement() {
                                                         )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="flex items-center space-x-2">
-                                                            {getPaymentBadge(
-                                                                order.paymentStatus,
-                                                            )}
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    updatePaymentStatus(
-                                                                        order.id.toString(),
-                                                                        order.paymentStatus ===
-                                                                            'paid'
-                                                                            ? 'unpaid'
-                                                                            : 'paid',
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    updatingPayment ===
-                                                                    order.id.toString()
-                                                                }
-                                                                className="h-6 w-6 p-0"
-                                                            >
-                                                                <CreditCard className="h-3 w-3" />
-                                                            </Button>
-                                                        </div>
+                                                        {getPaymentBadge(
+                                                            order.paymentStatus,
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="flex items-center space-x-2">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                asChild
+                                                        <div className="flex items-center space-x-1">
+                                                            <Link
+                                                                to={`/admin/orders/${order.id}`}
                                                             >
-                                                                <Link
-                                                                    to={`/admin/orders/${order.id}`}
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
                                                                 >
                                                                     <Eye className="h-4 w-4" />
-                                                                </Link>
-                                                            </Button>
+                                                                </Button>
+                                                            </Link>
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger
                                                                     asChild
                                                                 >
                                                                     <Button
                                                                         variant="ghost"
-                                                                        size="sm"
+                                                                        size="icon"
                                                                     >
                                                                         <MoreVertical className="h-4 w-4" />
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem
-                                                                        asChild
-                                                                    >
+                                                                    <DropdownMenuItem>
                                                                         <Link
                                                                             to={`/admin/orders/${order.id}`}
+                                                                            className="flex w-full items-center"
                                                                         >
                                                                             Xem
                                                                             chi
                                                                             tiết
                                                                         </Link>
                                                                     </DropdownMenuItem>
-                                                                    <DropdownMenuItem>
-                                                                        In đơn
-                                                                        hàng
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem>
-                                                                        Xuất PDF
-                                                                    </DropdownMenuItem>
+                                                                    {order.status ===
+                                                                        'refund_requested' && (
+                                                                        <>
+                                                                            <DropdownMenuItem
+                                                                                onClick={() => {
+                                                                                    setSelectedOrder(
+                                                                                        order,
+                                                                                    )
+                                                                                    setIsRefundApprovalModalOpen(
+                                                                                        true,
+                                                                                    )
+                                                                                }}
+                                                                                className="text-green-600"
+                                                                            >
+                                                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                                                Duyệt
+                                                                                hoàn
+                                                                                tiền
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem
+                                                                                onClick={() => {
+                                                                                    setSelectedOrder(
+                                                                                        order,
+                                                                                    )
+                                                                                    setIsRefundRejectionModalOpen(
+                                                                                        true,
+                                                                                    )
+                                                                                }}
+                                                                                className="text-red-600"
+                                                                            >
+                                                                                <XCircle className="mr-2 h-4 w-4" />
+                                                                                Từ
+                                                                                chối
+                                                                                hoàn
+                                                                                tiền
+                                                                            </DropdownMenuItem>
+                                                                        </>
+                                                                    )}
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
                                                         </div>
@@ -499,15 +792,14 @@ export default function OrderManagement() {
                             {totalPages > 1 && (
                                 <div className="mt-4 flex items-center justify-between">
                                     <div className="text-sm text-gray-500">
-                                        Hiển thị {startIndex + 1} đến{' '}
+                                        Hiển thị {startIndex + 1}-
                                         {Math.min(
                                             endIndex,
                                             filteredData.length,
                                         )}{' '}
-                                        trong tổng số {filteredData.length} đơn
-                                        hàng
+                                        của {filteredData.length} đơn hàng
                                     </div>
-                                    <div className="flex items-center space-x-2">
+                                    <div className="flex space-x-1">
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -520,28 +812,25 @@ export default function OrderManagement() {
                                         >
                                             Trước
                                         </Button>
-                                        <div className="flex items-center space-x-1">
-                                            {Array.from(
-                                                { length: totalPages },
-                                                (_, i) => i + 1,
-                                            ).map((page) => (
-                                                <Button
-                                                    key={page}
-                                                    variant={
-                                                        currentPage === page
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setCurrentPage(page)
-                                                    }
-                                                    className="h-8 w-8 p-0"
-                                                >
-                                                    {page}
-                                                </Button>
-                                            ))}
-                                        </div>
+                                        {Array.from(
+                                            { length: totalPages },
+                                            (_, i) => i + 1,
+                                        ).map((page) => (
+                                            <Button
+                                                key={page}
+                                                variant={
+                                                    currentPage === page
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
+                                                size="sm"
+                                                onClick={() =>
+                                                    setCurrentPage(page)
+                                                }
+                                            >
+                                                {page}
+                                            </Button>
+                                        ))}
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -566,6 +855,28 @@ export default function OrderManagement() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Refund Approval Modal */}
+            {isRefundApprovalModalOpen && (
+                <RefundApprovalModal
+                    isOpen={isRefundApprovalModalOpen}
+                    onClose={() => setIsRefundApprovalModalOpen(false)}
+                    onApprove={handleApproveRefund}
+                    order={selectedOrder}
+                    isSubmitting={isProcessingRefund}
+                />
+            )}
+
+            {/* Refund Rejection Modal */}
+            {isRefundRejectionModalOpen && (
+                <RefundRejectionModal
+                    isOpen={isRefundRejectionModalOpen}
+                    onClose={() => setIsRefundRejectionModalOpen(false)}
+                    onReject={handleRejectRefund}
+                    order={selectedOrder}
+                    isSubmitting={isProcessingRefund}
+                />
+            )}
         </div>
     )
 }

@@ -49,10 +49,7 @@ import {
     ShoppingCart,
     Info,
 } from 'lucide-react'
-import {
-    getTransactions,
-    getTransactionStats,
-} from '@/services/apiTransaction.service'
+import { getTransactions } from '@/services/apiTransaction.service'
 import {
     ITransaction,
     TransactionStats,
@@ -62,7 +59,6 @@ import {
 export default function TransactionManagement() {
     // State management
     const [transactions, setTransactions] = useState<ITransaction[]>([])
-    const [stats, setStats] = useState<TransactionStats | null>(null)
     const [filters, setFilters] = useState<TransactionFilters>({
         search: '',
         type: 'all',
@@ -91,10 +87,6 @@ export default function TransactionManagement() {
         loadTransactions()
     }, [currentPage, filters])
 
-    useEffect(() => {
-        loadStats()
-    }, [])
-
     const loadTransactions = async () => {
         try {
             setLoading(true)
@@ -122,26 +114,8 @@ export default function TransactionManagement() {
             setTransactions(response.data)
             setTotalRows(response.total)
             setTotalPages(response.pagination.totalPages)
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : 'Có lỗi xảy ra khi tải dữ liệu giao dịch',
-            )
-            console.error('Error loading transactions:', err)
         } finally {
             setLoading(false)
-        }
-    }
-
-    const loadStats = async () => {
-        try {
-            const response = await getTransactionStats()
-            if (response) {
-                setStats(response.data)
-            }
-        } catch (err) {
-            console.error('Error loading transaction stats:', err)
         }
     }
 
@@ -265,15 +239,8 @@ export default function TransactionManagement() {
                 </div>
             </div>
 
-            {error && (
-                <div className="mb-4 flex items-center rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-                    <AlertCircle className="mr-2" size={20} />
-                    <span>{error}</span>
-                </div>
-            )}
-
             {/* Stats Cards */}
-            {stats && (
+            {/* {stats && (
                 <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     <Card className="border-0 shadow-sm">
                         <CardContent className="p-6">
@@ -366,7 +333,7 @@ export default function TransactionManagement() {
                         </CardContent>
                     </Card>
                 </div>
-            )}
+            )} */}
 
             {/* Main Content */}
             <Card className="border-0 shadow-sm">
@@ -379,16 +346,6 @@ export default function TransactionManagement() {
                             <CardDescription className="text-gray-600">
                                 Xem tất cả giao dịch tự động từ đơn hàng và kho
                             </CardDescription>
-                        </div>
-                        <div className="flex space-x-2">
-                            <Button
-                                variant="outline"
-                                onClick={loadTransactions}
-                                className="border-gray-300 hover:bg-gray-50"
-                            >
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Làm mới
-                            </Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -565,9 +522,7 @@ export default function TransactionManagement() {
                                     <TableHead className="font-semibold text-gray-700">
                                         Số tiền
                                     </TableHead>
-                                    <TableHead className="font-semibold text-gray-700">
-                                        Nguồn
-                                    </TableHead>
+
                                     <TableHead className="font-semibold text-gray-700">
                                         Ngày giao dịch
                                     </TableHead>
@@ -641,12 +596,7 @@ export default function TransactionManagement() {
                                                     transaction.amount,
                                                 )}
                                             </TableCell>
-                                            <TableCell>
-                                                {renderAutoCreatedBadge(
-                                                    transaction.metadata
-                                                        ?.autoCreated,
-                                                )}
-                                            </TableCell>
+
                                             <TableCell className="text-gray-600">
                                                 {formatDate(
                                                     transaction.transactionDate,

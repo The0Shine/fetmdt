@@ -389,25 +389,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label
-                                htmlFor="quantity"
-                                className="mb-1 block text-sm font-medium text-gray-700"
-                            >
-                                Số lượng <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                id="quantity"
-                                name="quantity"
-                                value={formData.quantity || 0}
-                                onChange={onChange}
-                                required
-                                min="0"
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                placeholder="Nhập số lượng"
-                            />
-                        </div>
-                        <div>
-                            <label
                                 htmlFor="costPrice"
                                 className="mb-1 block text-sm font-medium text-gray-700"
                             >

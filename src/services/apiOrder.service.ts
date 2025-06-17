@@ -7,7 +7,13 @@ interface Order {
     orderNumber: string
     customerId: string
     customerName: string
-    status: 'pending' | 'processing' | 'shipping' | 'completed' | 'cancelled'
+    status:
+        | 'pending'
+        | 'processing'
+        | 'completed'
+        | 'cancelled'
+        | 'refund_requested'
+        | 'refunded'
     totalAmount: number
     shippingAddress: string
     paymentMethod: string
@@ -15,6 +21,12 @@ interface Order {
     createdAt: string
     updatedAt: string
     items: OrderItem[]
+    refundInfo?: {
+        refundReason: string
+        refundDate?: string
+        refundTransactionId?: string
+        notes?: string
+    }
 }
 
 interface OrderItem {
@@ -23,6 +35,20 @@ interface OrderItem {
     quantity: number
     price: number
     totalPrice: number
+}
+
+interface RefundRequestData {
+    orderId: string
+    refundReason: string
+    notes?: string
+    bankInfo?: any
+}
+
+interface ProcessRefundData {
+    refundReason: string
+    refundAmount: number
+    notes?: string
+    createImportVoucher?: boolean
 }
 
 // API functions
@@ -48,7 +74,13 @@ export const getOrderById = async (id: string) => {
 
 export const updateOrderStatus = async (
     id: string,
-    status: 'pending' | 'processing' | 'completed' | 'cancelled',
+    status:
+        | 'pending'
+        | 'processing'
+        | 'completed'
+        | 'cancelled'
+        | 'refund_requested'
+        | 'refunded',
 ) => {
     const response = await mainRepository.put(`/api/orders/${id}/status`, {
         status,
@@ -125,6 +157,67 @@ export const updateOrderToPaid = async (id: string): Promise<Order> => {
         return response.data
     } catch (error) {
         console.error(`Error updating order ${id} to paid:`, error)
+        throw error
+    }
+}
+
+export const requestRefund = async (
+    refundData: RefundRequestData,
+): Promise<any> => {
+    try {
+        const response = await mainRepository.post(
+            `/api/orders/${refundData.orderId}/request-refund`,
+            {
+                refundReason: refundData.refundReason,
+                notes: refundData.notes,
+                bankInfo: refundData.bankInfo,
+            },
+        )
+        return response.data
+    } catch (error) {
+        console.error('Error requesting refund:', error)
+        throw error
+    }
+}
+
+export const approveRefund = async (
+    id: string,
+    refundMethod: string,
+    refundAmount: number,
+    adminNote?: string,
+    createImportVoucher = true,
+): Promise<any> => {
+    try {
+        const response = await mainRepository.put(
+            `/api/orders/${id}/approve-refund`,
+            {
+                refundMethod,
+                refundAmount,
+                notes: adminNote,
+                createImportVoucher,
+            },
+        )
+        return response.data
+    } catch (error) {
+        console.error('Error approving refund:', error)
+        throw error
+    }
+}
+
+export const rejectRefund = async (
+    id: string,
+    adminNote?: string,
+): Promise<any> => {
+    try {
+        const response = await mainRepository.put(
+            `/api/orders/${id}/reject-refund`,
+            {
+                notes: adminNote,
+            },
+        )
+        return response.data
+    } catch (error) {
+        console.error('Error rejecting refund:', error)
         throw error
     }
 }

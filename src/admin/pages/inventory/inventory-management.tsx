@@ -61,7 +61,10 @@ import {
     Clock,
     History,
 } from 'lucide-react'
-import { getProducts } from '../../../services/apiProduct.service'
+import {
+    getProducts,
+    getProductsAdmin,
+} from '../../../services/apiProduct.service'
 import {
     getStockVouchers,
     approveStockVoucher,
@@ -194,7 +197,7 @@ export default function InventoryManagement() {
                 params.category = filterCategory
             }
 
-            const response = await getProducts(params)
+            const response = await getProductsAdmin(params)
             if (response) {
                 setProducts(response.data)
                 setTotalRows(response.total)
@@ -336,12 +339,12 @@ export default function InventoryManagement() {
         try {
             // Đóng modal
             setIsVoucherModalOpen(false)
-
+            await approveStockVoucher(voucher._id)
             // Reload data để phản ánh thay đổi
             await Promise.all([
+                loadStockHistory(), // Reload history nếu voucher được auto-approved
                 loadStockVouchers(),
                 loadProducts(), // Reload products để cập nhật số lượng tồn kho nếu auto-approved
-                loadStockHistory(), // Reload history nếu voucher được auto-approved
             ])
         } catch (err) {
             console.error('Error in handleSaveVoucher:', err)
@@ -516,13 +519,6 @@ export default function InventoryManagement() {
                 </div>
             </div>
 
-            {error && (
-                <div className="mb-4 flex items-center rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-                    <AlertCircle className="mr-2" size={20} />
-                    <span>{error}</span>
-                </div>
-            )}
-
             <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
@@ -645,9 +641,7 @@ export default function InventoryManagement() {
                                                     <ArrowUpDown className="h-3 w-3" />
                                                 </div>
                                             </TableHead>
-                                            <TableHead className="font-semibold text-gray-700">
-                                                Danh mục
-                                            </TableHead>
+
                                             <TableHead className="font-semibold text-gray-700">
                                                 Đơn vị
                                             </TableHead>
@@ -673,9 +667,7 @@ export default function InventoryManagement() {
                                                         <TableCell>
                                                             <Skeleton className="h-6 w-[200px]" />
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <Skeleton className="h-6 w-20" />
-                                                        </TableCell>
+
                                                         <TableCell>
                                                             <Skeleton className="h-6 w-16" />
                                                         </TableCell>
@@ -706,9 +698,7 @@ export default function InventoryManagement() {
                                                     <TableCell className="font-medium text-gray-900">
                                                         {product.name}
                                                     </TableCell>
-                                                    <TableCell className="text-gray-600">
-                                                        {product.category}
-                                                    </TableCell>
+
                                                     <TableCell className="text-gray-600">
                                                         {product.unit}
                                                     </TableCell>
@@ -789,14 +779,6 @@ export default function InventoryManagement() {
                                     >
                                         <FileUp className="mr-2 h-4 w-4" />
                                         Tạo phiếu xuất
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => loadStockVouchers()}
-                                        className="border-gray-300 hover:bg-gray-50"
-                                    >
-                                        <RefreshCw className="mr-2 h-4 w-4" />
-                                        Làm mới
                                     </Button>
                                 </div>
                             </div>
@@ -1082,16 +1064,7 @@ export default function InventoryManagement() {
                                         Theo dõi tất cả thay đổi tồn kho
                                     </CardDescription>
                                 </div>
-                                <div className="flex space-x-2">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => loadStockHistory()}
-                                        className="border-gray-300 hover:bg-gray-50"
-                                    >
-                                        <RefreshCw className="mr-2 h-4 w-4" />
-                                        Làm mới
-                                    </Button>
-                                </div>
+                                <div className="flex space-x-2"></div>
                             </div>
                         </CardHeader>
                         <CardContent className="bg-white p-6">

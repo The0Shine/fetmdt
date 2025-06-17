@@ -36,7 +36,6 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import ChangePasswordForm from './change-password-form'
-import AvatarUpload from './avatar-upload'
 import { apiUserService } from '@/services/apiUser.service'
 
 const profileSchema = z.object({
@@ -181,13 +180,11 @@ const ProfileForm: React.FC = () => {
                     )}
 
                     <Tabs defaultValue="profile" className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="profile">
                                 Thông tin cá nhân
                             </TabsTrigger>
-                            <TabsTrigger value="avatar">
-                                Ảnh đại diện
-                            </TabsTrigger>
+
                             <TabsTrigger value="password">
                                 Đổi mật khẩu
                             </TabsTrigger>
@@ -312,10 +309,6 @@ const ProfileForm: React.FC = () => {
                                     </form>
                                 </Form>
                             </div>
-                        </TabsContent>
-
-                        <TabsContent value="avatar" className="mt-6">
-                            <AvatarUpload />
                         </TabsContent>
 
                         <TabsContent value="password" className="mt-6">

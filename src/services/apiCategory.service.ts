@@ -11,6 +11,7 @@ interface CategoryQueryParams {
     search?: string
     parent?: string | null
     sort?: string
+    parentOnly?: boolean
 }
 
 // Lấy danh sách danh mục với các tùy chọn lọc và phân trang
@@ -36,9 +37,15 @@ export const getCategories = async (params: CategoryQueryParams = {}) => {
     return await mainRepository.get<CategoriesResponse>(url)
 }
 
-// Lấy danh mục cha (không có parent) - sửa lại để không gửi parent=null
+// Lấy tất cả danh mục (bao gồm cả parent và children)
+export const getAllCategories = async () => {
+    return await mainRepository.get<CategoriesResponse>(
+        '/api/categories?limit=100',
+    )
+}
+
+// Lấy chỉ danh mục cha (không có parent)
 export const getParentCategories = async () => {
-    // Không gửi parent=null, thay vào đó backend sẽ tự động lọc những category không có parent
     return await mainRepository.get<CategoriesResponse>(
         '/api/categories?parentOnly=true',
     )

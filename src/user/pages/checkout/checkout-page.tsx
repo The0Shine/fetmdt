@@ -17,7 +17,7 @@ export default function CheckoutPage() {
     const [success, setSuccess] = useState<string | null>(null)
 
     // Phí vận chuyển cố định
-    const shippingFee = items.length > 0 ? 30000 : 0
+    const shippingFee = 0
 
     // Tổng tiền đơn hàng
     const orderTotal = totalPrice + shippingFee

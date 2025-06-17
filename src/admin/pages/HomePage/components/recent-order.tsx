@@ -35,6 +35,10 @@ const getStatusColor = (status: string) => {
             return 'bg-blue-500'
         case 'cancelled':
             return 'bg-red-500'
+        case 'refund_requested':
+            return 'bg-orange-500'
+        case 'refunded':
+            return 'bg-purple-500'
         default:
             return 'bg-gray-500'
     }
@@ -50,6 +54,10 @@ const getStatusText = (status: string) => {
             return 'Đang xử lý'
         case 'cancelled':
             return 'Đã hủy'
+        case 'refund_requested':
+            return 'Yêu cầu hoàn tiền'
+        case 'refunded':
+            return 'Đã hoàn tiền'
         default:
             return status
     }

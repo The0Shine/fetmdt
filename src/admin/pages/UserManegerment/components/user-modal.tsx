@@ -287,23 +287,6 @@ export function UserModal({
                         </div>
                     </div>
 
-                    {/* Active Status - Only for editing */}
-                    {editingUser && (
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="isActive"
-                                checked={formData.isActive || false}
-                                onCheckedChange={(checked) =>
-                                    handleChange('isActive', checked)
-                                }
-                                disabled={loading}
-                            />
-                            <Label htmlFor="isActive">
-                                Tài khoản hoạt động
-                            </Label>
-                        </div>
-                    )}
-
                     {/* Password Info for new users */}
                     {!editingUser && (
                         <div className="rounded-md bg-yellow-50 p-4">
@@ -315,14 +298,6 @@ export function UserModal({
                                     <h3 className="text-sm font-medium text-yellow-800">
                                         Thông tin mật khẩu
                                     </h3>
-                                    <div className="mt-2 text-sm text-yellow-700">
-                                        <p>
-                                            Người dùng sẽ nhận được email với
-                                            thông tin đăng nhập. Họ sẽ được yêu
-                                            cầu đổi mật khẩu khi đăng nhập lần
-                                            đầu.
-                                        </p>
-                                    </div>
                                 </div>
                             </div>
                         </div>
